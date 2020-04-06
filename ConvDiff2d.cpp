@@ -4,6 +4,8 @@
 #include <vector>
 #include <cmath>
 #include <memory>
+#include <random>
+#include <stdio.h>
 #include <emscripten.h>
 #include <emscripten/html5.h>
 #include <SDL/SDL.h>
@@ -12,7 +14,7 @@
 
 #define PI 3.141592653589793238462
 
-#define POLYMAX 5
+#define POLYMAX 9
 
 #define N 3
 
@@ -20,7 +22,7 @@
 
 #define EPSILON (-1.0)
 
-#define SIGMA0 (170.0)
+#define SIGMA0  (500.0)
 
 #define DIFFCONST (1.0)
 
@@ -707,12 +709,35 @@ Mat C;
 Mat M;
 Eigen::FullPivLU<Eigen::MatrixXd> Mlu;
 SDL_Surface *screen;
+bool mouseIsDown;
+std::default_random_engine generator;
+std::uniform_real_distribution<double> distribution(0.01,0.99);
 
-
-EM_BOOL mouse_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
+// not valid in piecewise linear case
+double randResid(Vec phi)
 {
-	double uxn = (e->clientX-600.0)/2.5;
-	double uyn = (e->clientY - 220.0)/2.5;
+	int numpts = 10000;
+	double resid = 0.0;
+	for(int i = 0; i < numpts; i++)
+	{
+		double xx = distribution(generator);
+		double yy = distribution(generator);
+		double h = 0.001;
+		double val = 0.0;
+		val -= (Eval(phi,xx+h,yy)+Eval(phi,xx-h,yy)+Eval(phi,xx,yy+h)+Eval(phi,xx,yy-h)-4*Eval(phi,xx,yy))/(h*h);
+		val += ux * (Eval(phi,xx+h,yy)-Eval(phi,xx-h,yy))/(2.0*h);
+		val += uy * (Eval(phi,xx,yy+h)-Eval(phi,xx,yy-h))/(2.0*h);
+		val -= EvalRHS(xx,yy);
+		resid += std::pow(val,2);
+	}
+	resid = std::pow(resid/numpts,0.5);
+	return resid;
+}
+
+void mouse_update(const EmscriptenMouseEvent *e)
+{
+	double uxn = (e->clientX-600.0)*2.5;
+	double uyn = (e->clientY - 220.0)*2.5;
 	if(ABS(ux-uxn)>0.1 || ABS(uy-uyn)>0.1)
 	{
 		ux = uxn;
@@ -721,35 +746,46 @@ EM_BOOL mouse_callback(int eventType, const EmscriptenMouseEvent *e, void *userD
 		Mat R = A+U;
 		phi = R.householderQr().solve(rhs);
 	}
+	
+	printf("randomized residual %9.6f\n", randResid(phi));
+}
+
+
+EM_BOOL mousedown_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
+{
+	mouseIsDown = true;
+	return 1;
+}
+
+EM_BOOL mousemove_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
+{
+	if(mouseIsDown)
+	{
+		mouse_update(e);
+	}
+	return 1;
+}
+
+EM_BOOL mouseclick_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
+{
+	mouse_update(e);
+	return 1;
+}
+
+EM_BOOL mouseup_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
+{
+	mouseIsDown = false;
+	return 1;
+}
+
+EM_BOOL mouseleave_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
+{
+	mouseIsDown = false;
 	return 1;
 }
 
 void iter()
 {
-	/*
-	if(n%1 == 0)
-	{
-		double theta = 2.0*PI/60.0;
-		double uxn = ux*cos(theta) + uy*sin(theta);
-		double uyn = -ux*sin(theta) + uy*cos(theta);
-		ux = uxn;
-		uy = uyn;
-		U = (ux>0.0?ux:0.0)*UXP + (ux<0.0?ux:0.0)*UXM + (uy>0.0?uy:0.0)*UYP + (uy<0.0?uy:0.0)*UYM;
-
-		//C = id-(A+U)*(dt/2.0);
-		//M = id+(A+U)*(dt/2.0);
-   	 	//Mlu = M.fullPivLu(); 
-	}
-
-	//Vec b = rhs*dt + C*phi;
-	//phi = Mlu.solve(b);
-	Mat R = A+U;
-	//phi = R.partialPivLu().solve(rhs);
-	//phi = R.bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(rhs);
-	phi = R.householderQr().solve(rhs);
-	*/
-
-
 	double maxphi = Eval(phi, 0.0, 0.0);
 	double minphi = Eval(phi,0.0,0.0);
 	for(int i = 0; i < 100; i++)
@@ -761,6 +797,7 @@ void iter()
 			if(val < minphi) minphi = val;
 		}
 	}
+
 
 #ifdef TEST_SDL_LOCK_OPTS
   EM_ASM("SDL.defaults.copyOnLock = false; SDL.defaults.discardOnLock = true; SDL.defaults.opaqueFrontBuffer = false;");
@@ -784,12 +821,6 @@ void iter()
   if (SDL_MUSTLOCK(screen)) SDL_UnlockSurface(screen);
   SDL_Flip(screen); 
 
-	// if(n*dt > 200.0)
-	// {
-	// 	 emscripten_cancel_main_loop();
-	// }
-
-	n++;
 }
 
 int main(int argc, char ** argv)
@@ -798,6 +829,8 @@ int main(int argc, char ** argv)
 	MakeLegendreDerivProducts();
 	MakeLegendreAltProducts();
 	MakeLegendreEndpointVals();
+
+	mouseIsDown = false;
 
 
 	id = Mat::Identity(DOF,DOF);
@@ -816,20 +849,22 @@ int main(int argc, char ** argv)
 	UYM = BuildMatUYM();
 
 
-	ux = 0.0;
-	uy = 0.0;
+	ux = 14.0;
+	uy = 3.0;
 
 	U = (ux>0.0?ux:0.0)*UXP + (ux<0.0?ux:0.0)*UXM + (uy>0.0?uy:0.0)*UYP + (uy<0.0?uy:0.0)*UYM;
 	Mat R = A+U;
 	phi = R.householderQr().solve(rhs);
-	//C = id-(A+U)*(dt/2.0);
-	//M = id+(A+U)*(dt/2.0);
-    //Mlu = M.fullPivLu(); 
 
+	printf("randomized residual %9.6f\n", randResid(phi));
 
   SDL_Init(SDL_INIT_VIDEO);
   screen = SDL_SetVideoMode(256, 256, 32, SDL_SWSURFACE);
 
-	emscripten_set_mousemove_callback("canvas", 0, 1, mouse_callback);
+	emscripten_set_mousemove_callback("canvas", 0, 1, mousemove_callback);
+	emscripten_set_click_callback("canvas", 0, 1, mouseclick_callback);
+	emscripten_set_mousedown_callback("canvas", 0, 1, mousedown_callback);
+	emscripten_set_mouseup_callback("canvas", 0, 1, mouseup_callback);
+	emscripten_set_mouseleave_callback("canvas", 0, 1, mouseleave_callback);
 	emscripten_set_main_loop(iter, 20, 0);
 }
