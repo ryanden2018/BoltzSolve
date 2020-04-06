@@ -13,9 +13,9 @@
 
 #define PI 3.141592653589793238462
 
-#define POLYMAX 2
+#define POLYMAX 1
 
-#define N 9
+#define N 10
 
 #define DOF (N*N*(POLYMAX+1)*(POLYMAX+1))
 
@@ -648,12 +648,12 @@ double PeriodicGaussian(double x, double y, double r)
 	return val;
 }
 
-double EvalRHS(double x, double y)
+double EvalRHS(double x, double y, double xx, double yy)
 {
-	return PeriodicGaussian(x-0.2,y-0.8,0.05) - PeriodicGaussian(x-0.8,y-0.2,0.05);
+	return PeriodicGaussian(x-xx,y-yy,0.05) - PeriodicGaussian(x-(1.0-xx),y-(1.0-yy),0.05);
 }
 
-Vec BuildRHS()
+Vec BuildRHS(double xx, double yy)
 {
 	Vec rhs = Vec::Zero(DOF);
 	double h = 1.0/N;
@@ -668,6 +668,7 @@ Vec BuildRHS()
 				for(int py = 0; py < POLYMAX+1; py++)
 				{
 					double val = 0.0;
+					/*
 					for(int j = 0; j < 22; j++)
 					{
 						for(int k = 0; k < 22; k++)
@@ -675,9 +676,12 @@ Vec BuildRHS()
 							val += weights[j]*weights[k]
 								* LegendreEvalNorm(px,coords[j])
 								* LegendreEvalNorm(py,coords[k])
-								* EvalRHS(xc+coords[j]*(h/2.0), yc+coords[k]*(h/2.0));
+								* EvalRHS(xc+coords[j]*(h/2.0), yc+coords[k]*(h/2.0), xx, yy);
 						}
 					}
+					*/
+					val += 4*LegendreEvalNorm(px,0)*LegendreEvalNorm(py,0)
+						*EvalRHS(xc,yc,xx,yy);
 					rhs(IDX(ix,iy,px,py)) = val;
 				}
 			}
@@ -719,6 +723,8 @@ double uy;
 Mat U(DOF,DOF);
 Mat C(DOF,DOF);
 Mat M(DOF,DOF);
+double rhsx;
+double rhsy;
 //Eigen::SparseLU<Mat,Eigen::COLAMDOrdering<int>> solver;
 Eigen::BiCGSTAB<Mat, Eigen::IncompleteLUT<double>> solver;
 SDL_Surface *screen;
@@ -730,6 +736,12 @@ void iter()
 	Vec b = rhs*dt + C*phi;
 	phi = solver.solve(b);
 
+	double theta = 2.0*PI/40.0;
+	double rhsxn = 0.5+(rhsx-0.5)*std::cos(theta) + (rhsy-0.5)*std::sin(theta);
+	double rhsyn = 0.5-(rhsx-0.5)*std::sin(theta) + (rhsy-0.5)*std::cos(theta);
+	rhsx = rhsxn;
+	rhsy = rhsyn;
+	rhs = BuildRHS(rhsx,rhsy);
 
 	double maxphi = Eval(phi, 0.0, 0.0);
 	double minphi = Eval(phi,0.0,0.0);
@@ -783,7 +795,10 @@ int main(int argc, char ** argv)
 
 	id.setIdentity();
 
-	rhs = BuildRHS();
+	rhsx = 0.2;
+	rhsy = 0.8;
+
+	rhs = BuildRHS(rhsx,rhsy);
 
 	phi = Vec::Zero(DOF);
 
@@ -815,7 +830,7 @@ int main(int argc, char ** argv)
   screen = SDL_SetVideoMode(256, 256, 32, SDL_SWSURFACE);
 
 
-	emscripten_set_main_loop(iter, 20, 0);
+	emscripten_set_main_loop(iter, /*20*/ 0, 0);
 }
 
 
