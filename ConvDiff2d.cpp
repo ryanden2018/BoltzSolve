@@ -1,4 +1,7 @@
 #include <Eigen/LU>
+#include <Eigen/Sparse>
+#include <Eigen/SparseLU>
+#include <Eigen/IterativeLinearSolvers>
 #include <Eigen/Dense>
 #include <iostream>
 #include <vector>
@@ -10,9 +13,9 @@
 
 #define PI 3.141592653589793238462
 
-#define POLYMAX 3
+#define POLYMAX 2
 
-#define N 3
+#define N 9
 
 #define DOF (N*N*(POLYMAX+1)*(POLYMAX+1))
 
@@ -26,8 +29,9 @@
 
 #define IDX(IX,IY,PX,PY) ((POLYMAX+1)*(POLYMAX+1)*(N*((IX+N)%N)+(IY+N)%N) + PX*(POLYMAX+1)+PY)
 
-typedef Eigen::MatrixXd Mat;
+typedef Eigen::SparseMatrix<double> Mat;
 typedef Eigen::VectorXd Vec;
+typedef Eigen::Triplet<double> Trip;
 
 double weights[22];
 double coords[22];
@@ -172,11 +176,11 @@ void MakeLegendreAltProducts()
 	}
 }
 
-Mat BuildMatA()
+void BuildMatA(Mat& A)
 {
 	double h = 1.0/N;
 	double hbeta0 = std::pow(h,BETA0);
-	Mat A = Mat::Zero(DOF,DOF);
+	std::vector<Trip> elems;
 
 	// Diagonal blocks
 	for(int px = 0; px < POLYMAX+1; px++)
@@ -230,7 +234,8 @@ Mat BuildMatA()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy,px,py);
-                            A(idxv,idxphi) = val;
+                            Trip t(idxv,idxphi,val);
+							elems.push_back(t);
 						}
 					}
 				}
@@ -260,7 +265,8 @@ Mat BuildMatA()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix+1,iy,px,py);
-                            A(idxv,idxphi) = val;
+                            Trip t(idxv,idxphi,val);
+							elems.push_back(t);
 						}
 					}
 				}
@@ -290,7 +296,8 @@ Mat BuildMatA()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix-1,iy,px,py);
-							A(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+							elems.push_back(t);
 						}
 					}
 				}
@@ -320,7 +327,8 @@ Mat BuildMatA()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy+1,px,py);
-							A(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+							elems.push_back(t);
 						}
 					}
 				}
@@ -350,7 +358,8 @@ Mat BuildMatA()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy-1,px,py);
-							A(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+							elems.push_back(t);
 						}
 					}
 				}
@@ -358,15 +367,15 @@ Mat BuildMatA()
 		}
 	}
 
-	return A;
+	A.setFromTriplets(elems.begin(),elems.end());
 }
 
 
 
-Mat BuildMatUXP()
+void BuildMatUXP(Mat& UXP)
 {
 	double h = 1.0/N;
-	Mat UXP = Mat::Zero(DOF,DOF);
+	std::vector<Trip> elems;
 
 	// Diagonal blocks
 	for(int px = 0; px < POLYMAX+1; px++)
@@ -389,7 +398,8 @@ Mat BuildMatUXP()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy,px,py);
-							UXP(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+							elems.push_back(t);
 						}
 					}
 				}
@@ -415,7 +425,8 @@ Mat BuildMatUXP()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix-1,iy,px,py);
-							UXP(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+							elems.push_back(t);
 						}
 					}
 				}
@@ -423,14 +434,14 @@ Mat BuildMatUXP()
 		}
 	}
 
-	return UXP;
+	UXP.setFromTriplets(elems.begin(),elems.end());
 }
 
 
-Mat BuildMatUXM()
+void BuildMatUXM(Mat& UXM)
 {
 	double h = 1.0/N;
-	Mat UXM = Mat::Zero(DOF,DOF);
+	std::vector<Trip> elems;
 
 	// Diagonal blocks
 	for(int px = 0; px < POLYMAX+1; px++)
@@ -452,7 +463,8 @@ Mat BuildMatUXM()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy,px,py);
-							UXM(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+							elems.push_back(t);
 						}
 					}
 				}
@@ -478,7 +490,8 @@ Mat BuildMatUXM()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix+1,iy,px,py);
-							UXM(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+							elems.push_back(t);
 						}
 					}
 				}
@@ -486,15 +499,15 @@ Mat BuildMatUXM()
 		}
 	}
 
-	return UXM;
+	UXM.setFromTriplets(elems.begin(),elems.end());
 }
 
 
 
-Mat BuildMatUYP()
+void BuildMatUYP(Mat& UYP)
 {
 	double h = 1.0/N;
-	Mat UYP = Mat::Zero(DOF,DOF);
+	std::vector<Trip> elems;
 
 	// Diagonal blocks
 	for(int px = 0; px < POLYMAX+1; px++)
@@ -516,7 +529,8 @@ Mat BuildMatUYP()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy,px,py);
-							UYP(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+							elems.push_back(t);
 						}
 					}
 				}
@@ -542,7 +556,8 @@ Mat BuildMatUYP()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy-1,px,py);
-							UYP(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+							elems.push_back(t);
 						}
 					}
 				}
@@ -550,14 +565,13 @@ Mat BuildMatUYP()
 		}
 	}
 
-	return UYP;
+	UYP.setFromTriplets(elems.begin(),elems.end());
 }
 
-
-Mat BuildMatUYM()
+void BuildMatUYM(Mat& UYM)
 {
 	double h = 1.0/N;
-	Mat UYM = Mat::Zero(DOF,DOF);
+	std::vector<Trip> elems;
 
 	// Diagonal blocks
 	for(int px = 0; px < POLYMAX+1; px++)
@@ -579,7 +593,8 @@ Mat BuildMatUYM()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy,px,py);
-							UYM(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+							elems.push_back(t);
 						}
 					}
 				}
@@ -605,7 +620,8 @@ Mat BuildMatUYM()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy+1,px,py);
-							UYM(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+							elems.push_back(t);
 						}
 					}
 				}
@@ -613,7 +629,7 @@ Mat BuildMatUYM()
 		}
 	}
 
-	return UYM;
+	UYM.setFromTriplets(elems.begin(),elems.end());
 }
 
 
@@ -634,7 +650,7 @@ double PeriodicGaussian(double x, double y, double r)
 
 double EvalRHS(double x, double y)
 {
-	return PeriodicGaussian(x-0.2,y-0.8,0.15) - PeriodicGaussian(x-0.8,y-0.2,0.15);
+	return PeriodicGaussian(x-0.2,y-0.8,0.05) - PeriodicGaussian(x-0.8,y-0.2,0.05);
 }
 
 Vec BuildRHS()
@@ -688,43 +704,31 @@ double Eval(Vec phi, double x, double y)
 	return val;
 }
 
-Mat id;
+Mat id(DOF,DOF);
 Vec rhs;
 Vec phi;
 double dt;
 int n;
-Mat A;
-Mat UXP;
-Mat UXM;
-Mat UYP;
-Mat UYM;
+Mat A(DOF,DOF);
+Mat UXP(DOF,DOF);
+Mat UXM(DOF,DOF);
+Mat UYP(DOF,DOF);
+Mat UYM(DOF,DOF);
 double ux;
 double uy;
-Mat U;
-Mat C;
-Mat M;
-Eigen::FullPivLU<Eigen::MatrixXd> Mlu;
+Mat U(DOF,DOF);
+Mat C(DOF,DOF);
+Mat M(DOF,DOF);
+//Eigen::SparseLU<Mat,Eigen::COLAMDOrdering<int>> solver;
+Eigen::BiCGSTAB<Mat, Eigen::IncompleteLUT<double>> solver;
 SDL_Surface *screen;
 
 
 void iter()
 {
-	if(n%2 == 0)
-	{
-		double theta = 2.0*PI/30.0;
-		double uxn = ux*cos(theta) + uy*sin(theta);
-		double uyn = -ux*sin(theta) + uy*cos(theta);
-		ux = uxn;
-		uy = uyn;
-		U = (ux>0.0?ux:0.0)*UXP + (ux<0.0?ux:0.0)*UXM + (uy>0.0?uy:0.0)*UYP + (uy<0.0?uy:0.0)*UYM;
-
-		C = id-(A+U)*(dt/2.0);
-		M = id+(A+U)*(dt/2.0);
-   	 	Mlu = M.fullPivLu(); 
-	}
 
 	Vec b = rhs*dt + C*phi;
-	phi = Mlu.solve(b);
+	phi = solver.solve(b);
 
 
 	double maxphi = Eval(phi, 0.0, 0.0);
@@ -777,7 +781,7 @@ int main(int argc, char ** argv)
 	MakeLegendreEndpointVals();
 
 
-	id = Mat::Identity(DOF,DOF);
+	id.setIdentity();
 
 	rhs = BuildRHS();
 
@@ -786,21 +790,25 @@ int main(int argc, char ** argv)
 	dt = 0.01;
 	n = 1;
 
-	A = BuildMatA();
-	UXP = BuildMatUXP();
-	UXM = BuildMatUXM();
-	UYP = BuildMatUYP();
-	UYM = BuildMatUYM();
+	BuildMatA(A);
+	BuildMatUXP(UXP);
+	BuildMatUXM(UXM);
+	BuildMatUYP(UYP);
+	BuildMatUYM(UYM);
 
 
-	ux = 25.0;
-	uy = 0.0;
+	ux = 5.0;
+	uy = 8.0;
 
 	U = (ux>0.0?ux:0.0)*UXP + (ux<0.0?ux:0.0)*UXM + (uy>0.0?uy:0.0)*UYP + (uy<0.0?uy:0.0)*UYM;
 
 	C = id-(A+U)*(dt/2.0);
 	M = id+(A+U)*(dt/2.0);
-    Mlu = M.fullPivLu(); 
+	M.makeCompressed();
+    //solver.analyzePattern(M);
+	//solver.factorize(M);
+
+	solver.compute(M);
 
 
   SDL_Init(SDL_INIT_VIDEO);
