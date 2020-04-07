@@ -1,10 +1,10 @@
-#include <Eigen/LU>
 #include <Eigen/Dense>
+#include <Eigen/Sparse>
 #include <iostream>
 #include <vector>
 #include <cmath>
 #include <memory>
-#include <random>
+#include <Eigen/IterativeLinearSolvers>
 #include <stdio.h>
 #include <emscripten.h>
 #include <emscripten/html5.h>
@@ -14,15 +14,15 @@
 
 #define PI 3.141592653589793238462
 
-#define POLYMAX 9
+#define POLYMAX 2
 
-#define N 3
+#define N 40
 
 #define DOF (N*N*(POLYMAX+1)*(POLYMAX+1))
 
 #define EPSILON (-1.0)
 
-#define SIGMA0  (500.0)
+#define SIGMA0  ((POLYMAX+1)*(POLYMAX+2)*4+1)
 
 #define DIFFCONST (1.0)
 
@@ -30,8 +30,9 @@
 
 #define IDX(IX,IY,PX,PY) ((POLYMAX+1)*(POLYMAX+1)*(N*((IX+N)%N)+(IY+N)%N) + PX*(POLYMAX+1)+PY)
 
-typedef Eigen::MatrixXd Mat;
+typedef Eigen::SparseMatrix<double> Mat;
 typedef Eigen::VectorXd Vec;
+typedef Eigen::Triplet<double> Trip;
 
 double weights[22];
 double coords[22];
@@ -176,11 +177,11 @@ void MakeLegendreAltProducts()
 	}
 }
 
-Mat BuildMatA()
+void BuildMatA(Mat& A)
 {
 	double h = 1.0/N;
 	double hbeta0 = std::pow(h,BETA0);
-	Mat A = Mat::Zero(DOF,DOF);
+	std::vector<Trip> elems;
 
 	// Diagonal blocks
 	for(int px = 0; px < POLYMAX+1; px++)
@@ -234,7 +235,8 @@ Mat BuildMatA()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy,px,py);
-                            A(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+                            elems.push_back(t);
 						}
 					}
 				}
@@ -264,7 +266,8 @@ Mat BuildMatA()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix+1,iy,px,py);
-                            A(idxv,idxphi) = val;
+                            Trip t(idxv,idxphi,val);
+                            elems.push_back(t);
 						}
 					}
 				}
@@ -294,7 +297,8 @@ Mat BuildMatA()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix-1,iy,px,py);
-							A(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+                            elems.push_back(t);
 						}
 					}
 				}
@@ -324,7 +328,8 @@ Mat BuildMatA()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy+1,px,py);
-							A(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+                            elems.push_back(t);
 						}
 					}
 				}
@@ -354,7 +359,8 @@ Mat BuildMatA()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy-1,px,py);
-							A(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+                            elems.push_back(t);
 						}
 					}
 				}
@@ -362,15 +368,15 @@ Mat BuildMatA()
 		}
 	}
 
-	return A;
+	A.setFromTriplets(elems.begin(),elems.end());
 }
 
 
 
-Mat BuildMatUXP()
+void BuildMatUXP(Mat& UXP)
 {
 	double h = 1.0/N;
-	Mat UXP = Mat::Zero(DOF,DOF);
+	std::vector<Trip> elems;
 
 	// Diagonal blocks
 	for(int px = 0; px < POLYMAX+1; px++)
@@ -393,7 +399,8 @@ Mat BuildMatUXP()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy,px,py);
-							UXP(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+                            elems.push_back(t);
 						}
 					}
 				}
@@ -419,7 +426,8 @@ Mat BuildMatUXP()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix-1,iy,px,py);
-							UXP(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+                            elems.push_back(t);
 						}
 					}
 				}
@@ -427,14 +435,14 @@ Mat BuildMatUXP()
 		}
 	}
 
-	return UXP;
+	UXP.setFromTriplets(elems.begin(),elems.end());
 }
 
 
-Mat BuildMatUXM()
+void BuildMatUXM(Mat& UXM)
 {
 	double h = 1.0/N;
-	Mat UXM = Mat::Zero(DOF,DOF);
+	std::vector<Trip> elems;
 
 	// Diagonal blocks
 	for(int px = 0; px < POLYMAX+1; px++)
@@ -456,7 +464,8 @@ Mat BuildMatUXM()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy,px,py);
-							UXM(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+                            elems.push_back(t);
 						}
 					}
 				}
@@ -482,7 +491,8 @@ Mat BuildMatUXM()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix+1,iy,px,py);
-							UXM(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+                            elems.push_back(t);
 						}
 					}
 				}
@@ -490,15 +500,15 @@ Mat BuildMatUXM()
 		}
 	}
 
-	return UXM;
+	UXM.setFromTriplets(elems.begin(),elems.end());
 }
 
 
 
-Mat BuildMatUYP()
+void BuildMatUYP(Mat& UYP)
 {
 	double h = 1.0/N;
-	Mat UYP = Mat::Zero(DOF,DOF);
+	std::vector<Trip> elems;
 
 	// Diagonal blocks
 	for(int px = 0; px < POLYMAX+1; px++)
@@ -520,7 +530,8 @@ Mat BuildMatUYP()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy,px,py);
-							UYP(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+                            elems.push_back(t);
 						}
 					}
 				}
@@ -546,7 +557,8 @@ Mat BuildMatUYP()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy-1,px,py);
-							UYP(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+                            elems.push_back(t);
 						}
 					}
 				}
@@ -554,14 +566,14 @@ Mat BuildMatUYP()
 		}
 	}
 
-	return UYP;
+	UYP.setFromTriplets(elems.begin(),elems.end());
 }
 
 
-Mat BuildMatUYM()
+void BuildMatUYM(Mat& UYM)
 {
 	double h = 1.0/N;
-	Mat UYM = Mat::Zero(DOF,DOF);
+	std::vector<Trip> elems;
 
 	// Diagonal blocks
 	for(int px = 0; px < POLYMAX+1; px++)
@@ -583,7 +595,8 @@ Mat BuildMatUYM()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy,px,py);
-							UYM(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+                            elems.push_back(t);
 						}
 					}
 				}
@@ -609,7 +622,8 @@ Mat BuildMatUYM()
 						{
 							int idxv = IDX(ix,iy,qx,qy);
 							int idxphi = IDX(ix,iy+1,px,py);
-							UYM(idxv,idxphi) = val;
+							Trip t(idxv,idxphi,val);
+                            elems.push_back(t);
 						}
 					}
 				}
@@ -617,7 +631,7 @@ Mat BuildMatUYM()
 		}
 	}
 
-	return UYM;
+	UYM.setFromTriplets(elems.begin(),elems.end());
 }
 
 
@@ -637,7 +651,7 @@ double PeriodicGaussian(double x, double y, double r)
 }
 
 double EvalRHS(double x, double y)
-{
+{ 
 	return PeriodicGaussian(x-0.2,y-0.8,0.15) - PeriodicGaussian(x-0.8,y-0.2,0.15);
 }
 
@@ -676,6 +690,10 @@ Vec BuildRHS()
 
 double Eval(Vec phi, double x, double y)
 {
+	if(x < 0.0) return Eval(phi,x+1.0,y);
+	if(x>1.0) return Eval(phi,x-1.0,y);
+	if(y<0.0) return Eval(phi,x,y+1.0);
+	if(y > 1.0) return Eval(phi,x,y-1.0);
 	double h = 1.0/N;
 	int ix = x/h;
 	int iy = y/h;
@@ -697,94 +715,65 @@ Vec rhs;
 Vec phi;
 double dt;
 int n;
-Mat A;
-Mat UXP;
-Mat UXM;
-Mat UYP;
-Mat UYM;
+Mat A(DOF,DOF);
+Mat UXP(DOF,DOF);
+Mat UXM(DOF,DOF);
+Mat UYP(DOF,DOF);
+Mat UYM(DOF,DOF);
 double ux;
 double uy;
-Mat U;
-Mat C;
-Mat M;
-Eigen::FullPivLU<Eigen::MatrixXd> Mlu;
+Eigen::BiCGSTAB<Mat,Eigen::IncompleteLUT<double>> solver;
 SDL_Surface *screen;
 bool mouseIsDown;
-std::default_random_engine generator;
-std::uniform_real_distribution<double> distribution(0.01,0.99);
 
-// not valid in piecewise linear case
-double randResid(Vec phi)
+
+double solResid(Vec phi)
 {
-	int numpts = 10000;
+	int numpts = N*N;
 	double resid = 0.0;
-	for(int i = 0; i < numpts; i++)
+	double sizeRHS = 0.0;
+	double h = 1.0/N;
+	for(int i = 0; i < N; i++)
 	{
-		double xx = distribution(generator);
-		double yy = distribution(generator);
-		double h = 0.001;
-		double val = 0.0;
-		val -= (Eval(phi,xx+h,yy)+Eval(phi,xx-h,yy)+Eval(phi,xx,yy+h)+Eval(phi,xx,yy-h)-4*Eval(phi,xx,yy))/(h*h);
-		val += ux * (Eval(phi,xx+h,yy)-Eval(phi,xx-h,yy))/(2.0*h);
-		val += uy * (Eval(phi,xx,yy+h)-Eval(phi,xx,yy-h))/(2.0*h);
-		val -= EvalRHS(xx,yy);
-		resid += std::pow(val,2);
+		for(int j = 0; j < N; j++)
+		{
+			double xx = (0.5+i)*h;
+			double yy = (0.5+j)*h;
+			double val = 0.0;
+			val -= ( -Eval(phi,xx+2.0*h,yy)+16.0*Eval(phi,xx+h,yy)+16.0*Eval(phi,xx-h,yy)-Eval(phi,xx-2.0*h,yy) -Eval(phi,xx,yy+2.0*h)+16.0*Eval(phi,xx,yy+h)+16.0*Eval(phi,xx,yy-h)-Eval(phi,xx,yy-2.0*h) - 60.0*Eval(phi,xx,yy) )/(12.0*h*h);
+			val += ux * (-Eval(phi,xx+2.0*h,yy)+8.0*Eval(phi,xx+h,yy)-8.0*Eval(phi,xx-h,yy)+Eval(phi,xx-2.0*h,yy))/(12.0*h);
+			val += uy * (-Eval(phi,xx,yy+2.0*h)+8.0*Eval(phi,xx,yy+h)-8.0*Eval(phi,xx,yy-h)+Eval(phi,xx,yy-2.0*h))/(12.0*h);
+			val -= EvalRHS(xx,yy);
+			resid += std::pow(val,2);
+			sizeRHS += std::pow(EvalRHS(xx,yy),2);
+		}
 	}
 	resid = std::pow(resid/numpts,0.5);
-	return resid;
+	sizeRHS = std::pow(sizeRHS/numpts,0.5);
+	return resid/sizeRHS;
 }
 
-void mouse_update(const EmscriptenMouseEvent *e)
+extern "C" {
+
+void mouse_update(const EmscriptenMouseEvent *e, bool force)
 {
-	double uxn = (e->clientX-600.0)*2.5;
-	double uyn = (e->clientY - 220.0)*2.5;
-	if(ABS(ux-uxn)>0.1 || ABS(uy-uyn)>0.1)
+	double uxn = (e->targetX-250.0)/5;
+	double uyn = (e->targetY - 250.0)/5;
+	if(force || ABS(ux-uxn)>0.1 || ABS(uy-uyn)>0.1)
 	{
 		ux = uxn;
 		uy = uyn;
-		U = (ux>0.0?ux:0.0)*UXP + (ux<0.0?ux:0.0)*UXM + (uy>0.0?uy:0.0)*UYP + (uy<0.0?uy:0.0)*UYM;
+		Mat U = (ux>0.0?ux:0.0)*UXP + (ux<0.0?ux:0.0)*UXM + (uy>0.0?uy:0.0)*UYP + (uy<0.0?uy:0.0)*UYM;
 		Mat R = A+U;
-		phi = R.householderQr().solve(rhs);
+		R.makeCompressed();
+		solver.compute(R);
+		phi = solver.solve(rhs);
+		printf("matrix residual %3.2e, spatial residual %3.2e\n", (R*phi-rhs).norm(), solResid(phi));
 	}
-	
-	printf("randomized residual %9.6f\n", randResid(phi));
 }
 
 
-EM_BOOL mousedown_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
-{
-	mouseIsDown = true;
-	return 1;
-}
-
-EM_BOOL mousemove_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
-{
-	if(mouseIsDown)
-	{
-		mouse_update(e);
-	}
-	return 1;
-}
-
-EM_BOOL mouseclick_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
-{
-	mouse_update(e);
-	return 1;
-}
-
-EM_BOOL mouseup_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
-{
-	mouseIsDown = false;
-	return 1;
-}
-
-EM_BOOL mouseleave_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
-{
-	mouseIsDown = false;
-	return 1;
-}
-
-void iter()
+void repaint()
 {
 	double maxphi = Eval(phi, 0.0, 0.0);
 	double minphi = Eval(phi,0.0,0.0);
@@ -823,6 +812,14 @@ void iter()
 
 }
 
+
+EM_BOOL mouseclick_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
+{
+	mouse_update(e,true);
+	repaint();
+	return 1;
+}
+
 int main(int argc, char ** argv)
 {
 	MakeWeights();
@@ -833,8 +830,6 @@ int main(int argc, char ** argv)
 	mouseIsDown = false;
 
 
-	id = Mat::Identity(DOF,DOF);
-
 	rhs = BuildRHS();
 
 	phi = Vec::Zero(DOF);
@@ -842,29 +837,30 @@ int main(int argc, char ** argv)
 	dt = 0.01;
 	n = 1;
 
-	A = BuildMatA();
-	UXP = BuildMatUXP();
-	UXM = BuildMatUXM();
-	UYP = BuildMatUYP();
-	UYM = BuildMatUYM();
+	BuildMatA(A);
+	BuildMatUXP(UXP);
+	BuildMatUXM(UXM);
+	BuildMatUYP(UYP);
+	BuildMatUYM(UYM);
 
 
-	ux = 14.0;
-	uy = 3.0;
+	ux = 10.0;
+	uy = 10.0;
 
-	U = (ux>0.0?ux:0.0)*UXP + (ux<0.0?ux:0.0)*UXM + (uy>0.0?uy:0.0)*UYP + (uy<0.0?uy:0.0)*UYM;
+	Mat U = (ux>0.0?ux:0.0)*UXP + (ux<0.0?ux:0.0)*UXM + (uy>0.0?uy:0.0)*UYP + (uy<0.0?uy:0.0)*UYM;
 	Mat R = A+U;
-	phi = R.householderQr().solve(rhs);
+	R.makeCompressed();
+	solver.compute(R);
+	phi = solver.solve(rhs);
+	repaint();
 
-	printf("randomized residual %9.6f\n", randResid(phi));
+	printf("matrix residual %3.2e, spatial residual %3.2e\n", (R*phi-rhs).norm(), solResid(phi));
 
   SDL_Init(SDL_INIT_VIDEO);
   screen = SDL_SetVideoMode(256, 256, 32, SDL_SWSURFACE);
 
-	emscripten_set_mousemove_callback("canvas", 0, 1, mousemove_callback);
 	emscripten_set_click_callback("canvas", 0, 1, mouseclick_callback);
-	emscripten_set_mousedown_callback("canvas", 0, 1, mousedown_callback);
-	emscripten_set_mouseup_callback("canvas", 0, 1, mouseup_callback);
-	emscripten_set_mouseleave_callback("canvas", 0, 1, mouseleave_callback);
-	emscripten_set_main_loop(iter, 20, 0);
+	//emscripten_set_main_loop(iter, 20, 0);
+}
+
 }
