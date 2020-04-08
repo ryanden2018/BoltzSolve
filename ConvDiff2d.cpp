@@ -775,20 +775,26 @@ void mouse_update(const EmscriptenMouseEvent *e)
 	printf("matrix residual %3.2e, spatial residual %3.2e\n", (R*phi-rhs).norm(), solResid(phi));
 }
 
+// rgb(255,255,102) to rgb(139,0,139)
 
-double red(double val)
+double getLambda(double val)
 {
-	return 0.5+0.5*std::sin(8.0*PI*val);
+	return val;
 }
 
-double green(double val)
+double red(double lambda)
 {
-	return 0.5+0.5*std::cos(8.0*PI*val);
+	return (139.0*lambda + 255.0*(1.0-lambda))/255.0;
 }
 
-double blue(double val)
+double green(double lambda)
 {
-	return 0.5+0.5*std::sin(16.0*PI*val);
+	return (0*lambda + 255.0*(1.0-lambda))/255.0;
+}
+
+double blue(double lambda)
+{
+	return ((139.0*lambda + 102.0*(1.0-lambda))/255.0);
 }
 
 void repaint()
@@ -822,9 +828,10 @@ void repaint()
       int alpha = (i+j) % 255;
 #endif
 	  double val = (Eval(phi,(1.0*j)/256,(1.0*i)/256)-minphi)/(maxphi-minphi);
-	  double valr = red(val)*255;
-	  double valg = green(val)*255;
-	  double valb = blue(val)*255;
+	  double lambda = getLambda(val);
+	  double valr = red(lambda)*255;
+	  double valg = green(lambda)*255;
+	  double valb = blue(lambda*lambda*lambda)*255;
       *((Uint32*)screen->pixels + i * 256 + j) = SDL_MapRGBA(screen->format, (int)valr, (int)valg, (int)valb, 255);
     }
   }
