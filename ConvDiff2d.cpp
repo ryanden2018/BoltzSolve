@@ -36,17 +36,18 @@ private:
 	int N;
 	int K;
 	int dof;
-	double epsilon;
+	double epsilon = -1.0;
+	double diffconst = 1.0;
 	double sigma0;
-	double beta0;
+	double beta0 = 1.0;
 	SpMat A;
 	SpMat UXP;
 	SpMat UXM;
 	SpMat UYP;
 	SpMat UYM;
 	Vec rhs;
-	double ux;
-	double uy;
+	double ux = 0.0;
+	double uy = 0.0;
 	Eigen::BiCGSTAB<SpMat,Eigen::IncompleteLUT<double>> solver;
 	Vec phi;
 	void BuildMatA();
@@ -56,7 +57,7 @@ private:
 	void BuildMatUYM();
 	void BuildRHS();
 public:
-	ConvDiff(int N,int K) : N(N), K(K), dof(((N*N*(K+1)*(K+2))/2)), epsilon(-1.0), sigma0((K+1)*(K+2)*4+1), beta0(1.0), ux(0.0), uy(0.0)
+	ConvDiff(int N,int K) : N(N), K(K), dof(((N*N*(K+1)*(K+2))/2)), sigma0((K+1)*(K+2)*4+1)
 	{}
 	void init()
 	{
@@ -239,11 +240,11 @@ void ConvDiff::BuildMatA()
 				for(int qy = 0; qy < K+1-qx; qy++)
 				{
 					double val = 0.0;
-					val += std::pow(2.0/h,2) * normLegendreDerivProducts[px][qx] * (py == qy ? 1.0 : 0.0);
-					val += std::pow(2.0/h,2) * (px == qx ? 1.0 : 0.0) * normLegendreDerivProducts[py][qy];
+					val += diffconst * std::pow(2.0/h,2) * normLegendreDerivProducts[px][qx] * (py == qy ? 1.0 : 0.0);
+					val += diffconst * std::pow(2.0/h,2) * (px == qx ? 1.0 : 0.0) * normLegendreDerivProducts[py][qy];
 					
 					// East
-					val += (2.0/h) * (2.0/h) * (-0.5) * (py == qy ? 1.0 : 0.0)
+					val += diffconst * (2.0/h) * (2.0/h) * (-0.5) * (py == qy ? 1.0 : 0.0)
 						* normLegendreRightVals[qx] * normLegendreDerivRightVals[px];
 					val -= (2.0/h) * (2.0/h) *(-1.0)* epsilon * 0.5 * (py == qy ? 1.0 : 0.0)
 						* normLegendreRightVals[px] * normLegendreDerivRightVals[qx];
@@ -251,7 +252,7 @@ void ConvDiff::BuildMatA()
 						* (py == qy ? 1.0 : 0.0);
 					
 					// West
-					val += (2.0/h) *(2.0/h) * (0.5) * (py == qy ? 1.0 : 0.0)
+					val += diffconst * (2.0/h) *(2.0/h) * (0.5) * (py == qy ? 1.0 : 0.0)
 						* normLegendreLeftVals[qx] * normLegendreDerivLeftVals[px];
 					val -= (2.0/h) *(2.0/h) * epsilon * 0.5 * (py == qy ? 1.0 : 0.0)
 						* normLegendreLeftVals[px] * normLegendreDerivLeftVals[qx];
@@ -260,7 +261,7 @@ void ConvDiff::BuildMatA()
 					
 
 					// North
-					val += (2.0/h) *(2.0/h) * (-0.5) * (px == qx ? 1.0 : 0.0)
+					val += diffconst * (2.0/h) *(2.0/h) * (-0.5) * (px == qx ? 1.0 : 0.0)
 						* normLegendreRightVals[qy] * normLegendreDerivRightVals[py];
 					val -= (2.0/h) * (-1.0)*(2.0/h) * epsilon * 0.5 * (px == qx ? 1.0 : 0.0)
 						* normLegendreRightVals[py] * normLegendreDerivRightVals[qy];
@@ -268,7 +269,7 @@ void ConvDiff::BuildMatA()
 						* (px == qx ? 1.0 : 0.0);
 					
 					// South
-					val += (2.0/h) *(2.0/h) * (0.5) * (px == qx ? 1.0 : 0.0)
+					val += diffconst * (2.0/h) *(2.0/h) * (0.5) * (px == qx ? 1.0 : 0.0)
 						* normLegendreLeftVals[qy] * normLegendreDerivLeftVals[py];
 					val -= (2.0/h) * epsilon * 0.5 *(2.0/h) * (px == qx ? 1.0 : 0.0)
 						* normLegendreLeftVals[py] * normLegendreDerivLeftVals[qy];
@@ -305,7 +306,7 @@ void ConvDiff::BuildMatA()
 				for(int qy = 0; qy < K+1-qx; qy++)
 				{
 					double val = 0.0;
-					val += (2.0/h) *(2.0/h) * (-0.5) * (py == qy ? 1.0 : 0.0)
+					val += diffconst * (2.0/h) *(2.0/h) * (-0.5) * (py == qy ? 1.0 : 0.0)
 						* normLegendreRightVals[qx] * normLegendreDerivLeftVals[px];
 					val -= (2.0/h) * epsilon *(2.0/h) * 0.5 * (py == qy ? 1.0 : 0.0)
 						* normLegendreLeftVals[px] * normLegendreDerivRightVals[qx];
@@ -336,7 +337,7 @@ void ConvDiff::BuildMatA()
 				for(int qy = 0; qy < K+1-qx; qy++)
 				{
 					double val = 0.0;
-					val += (2.0/h) * (0.5) *(2.0/h) * (py == qy ? 1.0 : 0.0)
+					val += diffconst * (2.0/h) * (0.5) *(2.0/h) * (py == qy ? 1.0 : 0.0)
 						* normLegendreLeftVals[qx] * normLegendreDerivRightVals[px];
 					val -= (2.0/h) * (-1.0) * epsilon * 0.5 *(2.0/h) * (py == qy ? 1.0 : 0.0)
 						* normLegendreRightVals[px] * normLegendreDerivLeftVals[qx];
@@ -367,7 +368,7 @@ void ConvDiff::BuildMatA()
 				for(int qy = 0; qy < K+1-qx; qy++)
 				{
 					double val = 0.0;
-					val += (2.0/h) * (-0.5) *(2.0/h) * (px == qx ? 1.0 : 0.0)
+					val += diffconst * (2.0/h) * (-0.5) *(2.0/h) * (px == qx ? 1.0 : 0.0)
 						* normLegendreRightVals[qy] * normLegendreDerivLeftVals[py];
 					val -= (2.0/h) * epsilon * 0.5 *(2.0/h) * (px == qx ? 1.0 : 0.0)
 						* normLegendreLeftVals[py] * normLegendreDerivRightVals[qy];
@@ -398,7 +399,7 @@ void ConvDiff::BuildMatA()
 				for(int qy = 0; qy < K+1-qx; qy++)
 				{
 					double val = 0.0;
-					val += (2.0/h) * (0.5) *(2.0/h) * (px == qx ? 1.0 : 0.0)
+					val += diffconst * (2.0/h) * (0.5) *(2.0/h) * (px == qx ? 1.0 : 0.0)
 						* normLegendreLeftVals[qy] * normLegendreDerivRightVals[py];
 					val -= (2.0/h) * (-1.0) * epsilon * 0.5 *(2.0/h) * (px == qx ? 1.0 : 0.0)
 						* normLegendreRightVals[py] * normLegendreDerivLeftVals[qy];
@@ -760,9 +761,6 @@ double ConvDiff::Eval(double x, double y)
 	return val;
 }
 
-
-
-
 double ConvDiff::SolResid()
 {
 	int numpts = N*N;
@@ -776,7 +774,7 @@ double ConvDiff::SolResid()
 			double xx = (0.5+i)*h;
 			double yy = (0.5+j)*h;
 			double val = 0.0;
-			val -= ( -Eval(xx+4.0*h,yy)/560.0 + Eval(xx+3.0*h,yy)*8.0/315.0  -Eval(xx+2.0*h,yy)/5.0+Eval(xx+h,yy)*8.0/5.0+Eval(xx-h,yy)*8.0/5.0-Eval(xx-2.0*h,yy)/5.0 + Eval(xx-3.0*h,yy)*8.0/315.0 - Eval(xx-4.0*h,yy)/560.0 - Eval(xx,yy+4.0*h)/560.0+Eval(xx,yy+3.0*h)*8.0/315.0 -Eval(xx,yy+2.0*h)/5.0+Eval(xx,yy+h)*8.0/5.0+Eval(xx,yy-h)*8.0/5.0-Eval(xx,yy-2.0*h)/5.0 + Eval(xx,yy-3.0*h)*8.0/315.0 - Eval(xx,yy-4.0*h)/560.0 - Eval(xx,yy)*2.0*205.0/72.0 )/(h*h);
+			val -= diffconst*( -Eval(xx+4.0*h,yy)/560.0 + Eval(xx+3.0*h,yy)*8.0/315.0  -Eval(xx+2.0*h,yy)/5.0+Eval(xx+h,yy)*8.0/5.0+Eval(xx-h,yy)*8.0/5.0-Eval(xx-2.0*h,yy)/5.0 + Eval(xx-3.0*h,yy)*8.0/315.0 - Eval(xx-4.0*h,yy)/560.0 - Eval(xx,yy+4.0*h)/560.0+Eval(xx,yy+3.0*h)*8.0/315.0 -Eval(xx,yy+2.0*h)/5.0+Eval(xx,yy+h)*8.0/5.0+Eval(xx,yy-h)*8.0/5.0-Eval(xx,yy-2.0*h)/5.0 + Eval(xx,yy-3.0*h)*8.0/315.0 - Eval(xx,yy-4.0*h)/560.0 - Eval(xx,yy)*2.0*205.0/72.0 )/(h*h);
 			val += ux * (-Eval(xx+4.0*h,yy)/280.0+Eval(xx+3.0*h,yy)*4.0/105.0-Eval(xx+2.0*h,yy)/5.0+Eval(xx+h,yy)*4.0/5.0-Eval(xx-h,yy)*4.0/5.0+Eval(xx-2.0*h,yy)/5.0-Eval(xx-3.0*h,yy)*4.0/105.0+Eval(xx-4.0*h,yy)/280.0)/(h);
 			val += uy * (-Eval(xx,yy+4.0*h)/280.0+Eval(xx,yy+3.0*h)*4.0/105.0-Eval(xx,yy+2.0*h)/5.0+Eval(xx,yy+h)*4.0/5.0-Eval(xx,yy-h)*4.0/5.0+Eval(xx,yy-2.0*h)/5.0-Eval(xx,yy-3.0*h)*4.0/105.0+Eval(xx,yy-4.0*h)/280.0)/(h);
 			val -= EvalRHS(xx,yy);
@@ -799,6 +797,7 @@ std::queue<int> workQueue;
 bool convDiffInited(false);
 bool convDiffHighInited(false);
 bool mouseIsDown(false);
+bool touchIsStarted(false);
 
 void mouse_update(const EmscriptenMouseEvent *e)
 {
@@ -806,6 +805,17 @@ void mouse_update(const EmscriptenMouseEvent *e)
 	double uy = (e->targetY - 250.0)/5;
 	convDiff.SetU(ux,uy);
 	convDiffHigh.SetU(ux,uy);
+}
+
+void touch_update(const EmscriptenTouchEvent *e)
+{
+	if(e->numTouches > 0)
+	{
+		double ux = (e->touches[0].targetX-250.0)/5;
+		double uy = (e->touches[0].targetY - 250.0)/5;
+		convDiff.SetU(ux,uy);
+		convDiffHigh.SetU(ux,uy);
+	}
 }
 
 // rgb(255,255,102) to rgb(139,0,139)
@@ -877,6 +887,7 @@ EM_BOOL mouseclick_callback(int eventType, const EmscriptenMouseEvent *e, void *
 {
 	mouse_update(e);
 	workQueue.push(bigMem ? 1 : 0);
+	mouseIsDown = false;
 	return 1;
 }
 
@@ -908,16 +919,44 @@ EM_BOOL mousemove_callback(int eventType, const EmscriptenMouseEvent *e, void *u
 	return 1;
 }
 
-//int n = 0;
+EM_BOOL touchmove_callback(int eventType, const EmscriptenTouchEvent *e, void *userData)
+{
+	if(touchIsStarted)
+	{
+		touch_update(e);
+		workQueue.push(0);
+	}
+	return 1;
+}
 
+EM_BOOL touchstart_callback(int eventType, const EmscriptenTouchEvent *e, void *userData)
+{
+	touchIsStarted = true;
+	return 1;
+}
+
+EM_BOOL touchend_callback(int eventType, const EmscriptenTouchEvent *e, void *userData)
+{
+	touchIsStarted = false;
+	touch_update(e);
+	workQueue.push(bigMem ? 1 : 0);
+	return 1;
+}
+
+EM_BOOL touchcancel_callback(int eventType, const EmscriptenTouchEvent *e, void *userData)
+{
+	touchIsStarted = false;
+	return 1;
+}
+
+int n = 0;
 void init()
 {
-	// if(n == 0)
-	// {
-	// 	n++;
-	// 	return;
-	// }
-
+	if(n < 5)
+	{
+		n++;
+		return;
+	}
 	if(workQueue.empty()) return;
 
 	int workItem = workQueue.front();
@@ -976,6 +1015,10 @@ int main(int argc, char ** argv)
 	emscripten_set_mouseup_callback("canvas", 0, 1, mouseup_callback);
 	emscripten_set_mousemove_callback("canvas", 0, 1, mousemove_callback);
 	emscripten_set_mouseleave_callback("canvas", 0, 1, mouseleave_callback);
+	emscripten_set_touchstart_callback("canvas", 0, 1, touchstart_callback);
+	emscripten_set_touchend_callback("canvas", 0, 1, touchend_callback);
+	emscripten_set_touchcancel_callback("canvas", 0, 1, touchcancel_callback);
+	emscripten_set_touchmove_callback("canvas", 0, 1, touchmove_callback);
 
 
 	emscripten_set_main_loop(init,0,0);
