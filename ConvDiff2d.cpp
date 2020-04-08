@@ -9,6 +9,7 @@
 #include <emscripten.h>
 #include <emscripten/html5.h>
 #include <SDL/SDL.h>
+#include <queue>
 
 #define ABS(X) (X<0.0?-X:X)
 #define PI 3.141592653589793238462
@@ -281,7 +282,7 @@ void ConvDiff::BuildMatA()
 							int idxv = idx(ix,iy,qx,qy);
 							int idxphi = idx(ix,iy,px,py);
 							Trip t(idxv,idxphi,val);
-                            if(idxv != 0) elems.push_back(t);
+							if(idxv != 0) elems.push_back(t);
 							if(idxv == 0 && px == 0 && qx == 0)
 							{
 								Trip t1(idxv,idxphi,1.0);
@@ -316,8 +317,8 @@ void ConvDiff::BuildMatA()
 						{
 							int idxv = idx(ix,iy,qx,qy);
 							int idxphi = idx(ix+1,iy,px,py);
-                            Trip t(idxv,idxphi,val);
-                            if(idxv != 0) elems.push_back(t);
+							Trip t(idxv,idxphi,val);
+							if(idxv != 0) elems.push_back(t);
 						}
 					}
 				}
@@ -348,7 +349,7 @@ void ConvDiff::BuildMatA()
 							int idxv = idx(ix,iy,qx,qy);
 							int idxphi = idx(ix-1,iy,px,py);
 							Trip t(idxv,idxphi,val);
-                            if(idxv != 0) elems.push_back(t);
+							if(idxv != 0) elems.push_back(t);
 						}
 					}
 				}
@@ -379,7 +380,7 @@ void ConvDiff::BuildMatA()
 							int idxv = idx(ix,iy,qx,qy);
 							int idxphi = idx(ix,iy+1,px,py);
 							Trip t(idxv,idxphi,val);
-                            if(idxv != 0) elems.push_back(t);
+							if(idxv != 0) elems.push_back(t);
 						}
 					}
 				}
@@ -410,7 +411,7 @@ void ConvDiff::BuildMatA()
 							int idxv = idx(ix,iy,qx,qy);
 							int idxphi = idx(ix,iy-1,px,py);
 							Trip t(idxv,idxphi,val);
-                            if(idxv != 0) elems.push_back(t);
+							if(idxv != 0) elems.push_back(t);
 						}
 					}
 				}
@@ -450,7 +451,7 @@ void ConvDiff::BuildMatUXP()
 							int idxv = idx(ix,iy,qx,qy);
 							int idxphi = idx(ix,iy,px,py);
 							Trip t(idxv,idxphi,val);
-                            if(idxv != 0) elems.push_back(t);
+							if(idxv != 0) elems.push_back(t);
 						}
 					}
 				}
@@ -477,7 +478,7 @@ void ConvDiff::BuildMatUXP()
 							int idxv = idx(ix,iy,qx,qy);
 							int idxphi = idx(ix-1,iy,px,py);
 							Trip t(idxv,idxphi,val);
-                            if(idxv != 0) elems.push_back(t);
+							if(idxv != 0) elems.push_back(t);
 						}
 					}
 				}
@@ -515,7 +516,7 @@ void ConvDiff::BuildMatUXM()
 							int idxv = idx(ix,iy,qx,qy);
 							int idxphi = idx(ix,iy,px,py);
 							Trip t(idxv,idxphi,val);
-                            if(idxv != 0) elems.push_back(t);
+							if(idxv != 0) elems.push_back(t);
 						}
 					}
 				}
@@ -542,7 +543,7 @@ void ConvDiff::BuildMatUXM()
 							int idxv = idx(ix,iy,qx,qy);
 							int idxphi = idx(ix+1,iy,px,py);
 							Trip t(idxv,idxphi,val);
-                            if(idxv != 0) elems.push_back(t);
+							if(idxv != 0) elems.push_back(t);
 						}
 					}
 				}
@@ -581,7 +582,7 @@ void ConvDiff::BuildMatUYP()
 							int idxv = idx(ix,iy,qx,qy);
 							int idxphi = idx(ix,iy,px,py);
 							Trip t(idxv,idxphi,val);
-                            if(idxv != 0) elems.push_back(t);
+							if(idxv != 0) elems.push_back(t);
 						}
 					}
 				}
@@ -608,7 +609,7 @@ void ConvDiff::BuildMatUYP()
 							int idxv = idx(ix,iy,qx,qy);
 							int idxphi = idx(ix,iy-1,px,py);
 							Trip t(idxv,idxphi,val);
-                            if(idxv != 0) elems.push_back(t);
+							if(idxv != 0) elems.push_back(t);
 						}
 					}
 				}
@@ -646,7 +647,7 @@ void ConvDiff::BuildMatUYM()
 							int idxv = idx(ix,iy,qx,qy);
 							int idxphi = idx(ix,iy,px,py);
 							Trip t(idxv,idxphi,val);
-                            if(idxv != 0) elems.push_back(t);
+							if(idxv != 0) elems.push_back(t);
 						}
 					}
 				}
@@ -673,7 +674,7 @@ void ConvDiff::BuildMatUYM()
 							int idxv = idx(ix,iy,qx,qy);
 							int idxphi = idx(ix,iy+1,px,py);
 							Trip t(idxv,idxphi,val);
-                            if(idxv != 0) elems.push_back(t);
+							if(idxv != 0) elems.push_back(t);
 						}
 					}
 				}
@@ -791,16 +792,20 @@ double ConvDiff::SolResid()
 extern "C" {
 
 SDL_Surface *screen;
-ConvDiff convDiff(20,3);
+ConvDiff convDiff(10,1);
+ConvDiff convDiffHigh(20,3);
+bool bigMem(true);
+std::queue<int> workQueue;
+bool convDiffInited(false);
+bool convDiffHighInited(false);
+bool mouseIsDown(false);
 
 void mouse_update(const EmscriptenMouseEvent *e)
 {
 	double ux = (e->targetX-250.0)/5;
 	double uy = (e->targetY - 250.0)/5;
 	convDiff.SetU(ux,uy);
-	double matResid = convDiff.Solve();
-	double solResid = convDiff.SolResid();
-	printf("matrix residual %3.2e, spatial residual %3.2e\n", matResid, solResid);
+	convDiffHigh.SetU(ux,uy);
 }
 
 // rgb(255,255,102) to rgb(139,0,139)
@@ -825,15 +830,15 @@ double blue(double lambda)
 	return ((139.0*lambda + 102.0*(1.0-lambda))/255.0);
 }
 
-void repaint()
+void repaint(ConvDiff& cd)
 {
-	double maxphi = convDiff.Eval(0.0, 0.0);
-	double minphi = convDiff.Eval(0.0,0.0);
+	double maxphi = cd.Eval(0.0, 0.0);
+	double minphi = cd.Eval(0.0,0.0);
 	for(int i = 0; i < 100; i++)
 	{
 		for(int j = 0; j < 100; j++)
 		{
-			double val = convDiff.Eval((1.0*j)/100,(1.0*i)/100);
+			double val = cd.Eval((1.0*j)/100,(1.0*i)/100);
 			if(val > maxphi) maxphi = val;
 			if(val < minphi) minphi = val;
 		}
@@ -844,36 +849,113 @@ void repaint()
   EM_ASM("SDL.defaults.copyOnLock = false; SDL.defaults.discardOnLock = true; SDL.defaults.opaqueFrontBuffer = false;");
 #endif
 
-  if (SDL_MUSTLOCK(screen)) SDL_LockSurface(screen);
-  for (int i = 0; i < 256; i++) {
-    for (int j = 0; j < 256; j++) {
+	if (SDL_MUSTLOCK(screen)) SDL_LockSurface(screen);
+	for (int i = 0; i < 256; i++) {
+		for (int j = 0; j < 256; j++) {
 #ifdef TEST_SDL_LOCK_OPTS
-      // Alpha behaves like in the browser, so write proper opaque pixels.
-      int alpha = 255;
+			// Alpha behaves like in the browser, so write proper opaque pixels.
+			int alpha = 255;
 #else
-      // To emulate native behavior with blitting to screen, alpha component is ignored. Test that it is so by outputting
-      // data (and testing that it does get discarded)
-      int alpha = (i+j) % 255;
+			// To emulate native behavior with blitting to screen, alpha component is ignored. Test that it is so by outputting
+			// data (and testing that it does get discarded)
+			int alpha = (i+j) % 255;
 #endif
-	  double val = (convDiff.Eval((1.0*j)/256,(1.0*i)/256)-minphi)/(maxphi-minphi);
-	  double lambda = getLambda(val);
-	  double valr = red(lambda)*255;
-	  double valg = green(lambda)*255;
-	  double valb = blue(lambda*lambda*lambda)*255;
-      *((Uint32*)screen->pixels + i * 256 + j) = SDL_MapRGBA(screen->format, (int)valr, (int)valg, (int)valb, 255);
-    }
-  }
-  if (SDL_MUSTLOCK(screen)) SDL_UnlockSurface(screen);
-  SDL_Flip(screen); 
-
+			double val = (cd.Eval((1.0*j)/256,(1.0*i)/256)-minphi)/(maxphi-minphi);
+			double lambda = getLambda(val);
+			double valr = red(lambda)*255;
+			double valg = green(lambda)*255;
+			double valb = blue(lambda*lambda*lambda)*255;
+			*((Uint32*)screen->pixels + i * 256 + j) = SDL_MapRGBA(screen->format, (int)valr, (int)valg, (int)valb, 255);
+		}
+	}
+	if (SDL_MUSTLOCK(screen)) SDL_UnlockSurface(screen);
+	SDL_Flip(screen); 
 }
 
 
 EM_BOOL mouseclick_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
 {
 	mouse_update(e);
-	repaint();
+	workQueue.push(bigMem ? 1 : 0);
 	return 1;
+}
+
+EM_BOOL mouseleave_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
+{
+	mouseIsDown = false;
+	return 1;
+}
+
+EM_BOOL mouseup_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
+{
+	mouseIsDown = false;
+	return 1;
+}
+
+EM_BOOL mousedown_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
+{
+	mouseIsDown = true;
+	return 1;
+}
+
+EM_BOOL mousemove_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
+{
+	if(mouseIsDown)
+	{
+		mouse_update(e);
+		workQueue.push(0);
+	}
+	return 1;
+}
+
+//int n = 0;
+
+void init()
+{
+	// if(n == 0)
+	// {
+	// 	n++;
+	// 	return;
+	// }
+
+	if(workQueue.empty()) return;
+
+	int workItem = workQueue.front();
+	workQueue.pop();
+
+	if(workItem == 0)
+	{
+		if(!convDiffInited)
+		{
+			convDiff.init();
+			convDiffInited = true;
+		}
+		convDiff.Solve();
+		repaint(convDiff);
+	}
+	else
+	{
+		if(!convDiffHighInited && bigMem)
+		{
+			try 
+			{
+				convDiffHigh.init();
+				convDiffHighInited = true;
+			} 
+			catch (const std::exception&)
+			{
+				bigMem = false;
+			}
+		}
+		
+		if(bigMem)
+		{
+			double matResid = convDiffHigh.Solve();
+			double solResid = convDiffHigh.SolResid();
+			printf("matrix residual %3.2e, spatial residual %3.2e\n", matResid, solResid);
+			repaint(convDiffHigh);
+		}
+	}
 }
 
 int main(int argc, char ** argv)
@@ -883,17 +965,20 @@ int main(int argc, char ** argv)
 	MakeLegendreAltProducts();
 	MakeLegendreEndpointVals();
 
-	convDiff.init();
-
-	double matResid = convDiff.Solve();
-	double solResid = convDiff.SolResid();
-	printf("matrix residual %3.2e, spatial residual %3.2e\n", matResid, solResid);
-
+	workQueue.push(0);
+	workQueue.push(1);
+	
 	SDL_Init(SDL_INIT_VIDEO);
 	screen = SDL_SetVideoMode(256, 256, 32, SDL_SWSURFACE);
 
 	emscripten_set_click_callback("canvas", 0, 1, mouseclick_callback);
-	repaint();
+	emscripten_set_mousedown_callback("canvas", 0, 1, mousedown_callback);
+	emscripten_set_mouseup_callback("canvas", 0, 1, mouseup_callback);
+	emscripten_set_mousemove_callback("canvas", 0, 1, mousemove_callback);
+	emscripten_set_mouseleave_callback("canvas", 0, 1, mouseleave_callback);
+
+
+	emscripten_set_main_loop(init,0,0);
 }
 
 }
