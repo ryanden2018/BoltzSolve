@@ -799,10 +799,21 @@ bool convDiffHighInited(false);
 bool mouseIsDown(false);
 bool touchIsStarted(false);
 
+double getVelocityX(long targetX)
+{
+	return (targetX-350.0)/2;
+}
+
+
+double getVelocityY(long targetY)
+{
+	return (targetY-350.0)/2;
+}
+
 void mouse_update(const EmscriptenMouseEvent *e)
 {
-	double ux = (e->targetX-250.0)/5;
-	double uy = (e->targetY - 250.0)/5;
+	double ux = getVelocityX(e->targetX);
+	double uy = getVelocityY(e->targetY);
 	convDiff.SetU(ux,uy);
 	convDiffHigh.SetU(ux,uy);
 }
@@ -820,33 +831,62 @@ void touch_update(const EmscriptenTouchEvent *e)
 		}
 		targetX /= e->numTouches;
 		targetY /= e->numTouches;
-		double ux = (targetX-250.0)/5;
-		double uy = (targetY - 250.0)/5;
+		double ux = getVelocityX(targetX);
+		double uy = getVelocityY(targetY);
 		convDiff.SetU(ux,uy);
 		convDiffHigh.SetU(ux,uy);
 	}
 }
 
-// rgb(255,255,102) to rgb(139,0,139)
+// rgb(255,255,102) to rgb(255,140,0) to rgb(139,0,139) to rgb(0,0,139)
+const double third = 1.0/3.0;
+const double twothird = 2.0/3.0;
 
-double getLambda(double val)
+double lambda(double val)
 {
-	return val;
+	return (val > 1.0 ? 1.0 : (val < 0.0 ? 0.0 : val));
 }
 
 double red(double lambda)
 {
-	return (139.0*lambda + 255.0*(1.0-lambda))/255.0;
+	return (
+		lambda > twothird ?
+			0.0*(lambda-twothird)/third + 139.0*(1.0-(lambda-twothird)/third)
+		:
+		(lambda > third ?
+			139.0*(lambda-third)/third + 255.0*(1.0-(lambda-third)/third)
+		:
+			255.0*(lambda)/third + 255.0*(1.0-(lambda)/third)
+		)
+	)/255.0;
 }
 
 double green(double lambda)
 {
-	return (0*lambda + 255.0*(1.0-lambda))/255.0;
+	return (
+		lambda > twothird ?
+			0.0*(lambda-twothird)/third + 0.0*(1.0-(lambda-twothird)/third)
+		:
+		(lambda > third ?
+			0.0*(lambda-third)/third + 140.0*(1.0-(lambda-third)/third)
+		:
+			140.0*(lambda)/third + 255.0*(1.0-(lambda)/third)
+		)
+	)/255.0; 
 }
 
 double blue(double lambda)
 {
-	return ((139.0*lambda + 102.0*(1.0-lambda))/255.0);
+	return (
+		lambda > twothird ?
+			139.0*(lambda-twothird)/third + 139.0*(1.0-(lambda-twothird)/third)
+		:
+		(lambda > third ?
+			139.0*(lambda-third)/third + 0.0*(1.0-(lambda-third)/third)
+		:
+			0.0*(lambda)/third + 102.0*(1.0-(lambda)/third)
+		)
+	)/255.0;
 }
 
 void repaint(ConvDiff& cd)
@@ -863,27 +903,18 @@ void repaint(ConvDiff& cd)
 		}
 	}
 
-
-#ifdef TEST_SDL_LOCK_OPTS
-  EM_ASM("SDL.defaults.copyOnLock = false; SDL.defaults.discardOnLock = true; SDL.defaults.opaqueFrontBuffer = false;");
-#endif
-
 	if (SDL_MUSTLOCK(screen)) SDL_LockSurface(screen);
 	for (int i = 0; i < 256; i++) {
 		for (int j = 0; j < 256; j++) {
-#ifdef TEST_SDL_LOCK_OPTS
-			// Alpha behaves like in the browser, so write proper opaque pixels.
-			int alpha = 255;
-#else
-			// To emulate native behavior with blitting to screen, alpha component is ignored. Test that it is so by outputting
-			// data (and testing that it does get discarded)
-			int alpha = (i+j) % 255;
-#endif
 			double val = (cd.Eval((1.0*j)/256,(1.0*i)/256)-minphi)/(maxphi-minphi);
-			double lambda = getLambda(val);
-			double valr = red(lambda)*255;
-			double valg = green(lambda)*255;
-			double valb = blue(lambda*lambda*lambda)*255;
+			double lambda1 = lambda(val-0.05);
+			double lambda2 = lambda(val-0.025);
+			double lambda3 = lambda(val);
+			double lambda4 = lambda(val+0.025);
+			double lambda5 = lambda(val+0.05);
+			double valr = (1.0/5.0)*(red(lambda1)+red(lambda2)+red(lambda3)+red(lambda4)+red(lambda5))*255;
+			double valg = (1.0/5.0)*(green(lambda1)+green(lambda2)+green(lambda3)+green(lambda4)+green(lambda5))*255;
+			double valb = (1.0/5.0)*(blue(lambda1)+blue(lambda2)+blue(lambda3)+blue(lambda4)+blue(lambda5))*255;
 			*((Uint32*)screen->pixels + i * 256 + j) = SDL_MapRGBA(screen->format, (int)valr, (int)valg, (int)valb, 255);
 		}
 	}
@@ -895,7 +926,8 @@ void repaint(ConvDiff& cd)
 EM_BOOL mouseclick_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
 {
 	mouse_update(e);
-	workQueue.push(bigMem ? 1 : 0);
+	workQueue.push(0);
+	workQueue.push(bigMem ? 1 : -1);
 	mouseIsDown = false;
 	return 1;
 }
@@ -948,7 +980,8 @@ EM_BOOL touchend_callback(int eventType, const EmscriptenTouchEvent *e, void *us
 {
 	touchIsStarted = false;
 	touch_update(e);
-	workQueue.push(bigMem ? 1 : 0);
+	workQueue.push(0);
+	workQueue.push(bigMem ? 1 : -1);
 	return 1;
 }
 
@@ -970,6 +1003,8 @@ void init()
 
 	int workItem = workQueue.front();
 	workQueue.pop();
+
+	if(workItem < 0) return;
 
 	if(workItem == 0)
 	{
