@@ -811,8 +811,17 @@ void touch_update(const EmscriptenTouchEvent *e)
 {
 	if(e->numTouches > 0)
 	{
-		double ux = (e->touches[0].targetX-250.0)/5;
-		double uy = (e->touches[0].targetY - 250.0)/5;
+		long targetX = 0;
+		long targetY = 0;
+		for(int i = 0; i < e->numTouches; i++)
+		{
+			targetX += e->touches[i].targetX;
+			targetY += e->touches[i].targetY;
+		}
+		targetX /= e->numTouches;
+		targetY /= e->numTouches;
+		double ux = (targetX-250.0)/5;
+		double uy = (targetY - 250.0)/5;
 		convDiff.SetU(ux,uy);
 		convDiffHigh.SetU(ux,uy);
 	}
