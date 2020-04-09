@@ -11,7 +11,6 @@
 #include <SDL/SDL.h>
 #include <queue>
 
-#define ABS(X) (X<0.0?-X:X)
 #define PI 3.141592653589793238462
 
 typedef Eigen::SparseMatrix<double> SpMat;
@@ -877,17 +876,20 @@ double getLambda(double val, int colorIndex)
 
 double red(double lambda, int colorIndex)
 {
-	return ((1.0-lambda)*reds[colorIndex] + lambda*reds[colorIndex+1])/255.0;
+	//return ((1.0-lambda)*reds[colorIndex] + lambda*reds[colorIndex+1])/255.0;
+	return lambda>0.5 ? 1.0 : 254.0;
 }
 
 double green(double lambda, int colorIndex)
 {
-	return ((1.0-lambda)*greens[colorIndex] + lambda*greens[colorIndex+1])/255.0; 
+	//return ((1.0-lambda)*greens[colorIndex] + lambda*greens[colorIndex+1])/255.0; 
+	return lambda>0.5 ? 1.0 : 254.0;
 }
 
 double blue(double lambda, int colorIndex)
 {
-	return ((1.0-lambda)*blues[colorIndex] + lambda*blues[colorIndex+1])/255.0;
+	//return ((1.0-lambda)*blues[colorIndex] + lambda*blues[colorIndex+1])/255.0;
+	return lambda>0.5 ? 1.0 : 254.0;
 }
 
 void repaint(ConvDiff& cd)
@@ -905,15 +907,15 @@ void repaint(ConvDiff& cd)
 	}
 
 	if (SDL_MUSTLOCK(screen)) SDL_LockSurface(screen);
-	for (int i = 0; i < 256; i++) {
-		for (int j = 0; j < 256; j++) {
-			double val = (cd.Eval((1.0*j)/256,(1.0*i)/256)-minphi)/(maxphi-minphi);
+	for (int i = 0; i < 700; i++) {
+		for (int j = 0; j < 700; j++) {
+			double val = (cd.Eval((1.0*j)/700,(1.0*i)/700)-minphi)/(maxphi-minphi);
 			int colorIndex = getColorIndex(val);
 			double lambda = getLambda(val,colorIndex);
 			double valr = red(lambda,colorIndex)*255.0;
 			double valg = green(lambda,colorIndex)*255.0;
 			double valb = blue(lambda,colorIndex)*255.0;
-			*((Uint32*)screen->pixels + i * 256 + j) = SDL_MapRGBA(screen->format, (int)valr, (int)valg, (int)valb, 255);
+			*((Uint32*)screen->pixels + i * 700 + j) = SDL_MapRGBA(screen->format, (int)valr, (int)valg, (int)valb, 255);
 		}
 	}
 	if (SDL_MUSTLOCK(screen)) SDL_UnlockSurface(screen);
@@ -1041,7 +1043,7 @@ int main(int argc, char ** argv)
 	workQueue.push(1);
 	
 	SDL_Init(SDL_INIT_VIDEO);
-	screen = SDL_SetVideoMode(256, 256, 32, SDL_SWSURFACE);
+	screen = SDL_SetVideoMode(700, 700, 32, SDL_SWSURFACE);
 
 	emscripten_set_click_callback("canvas", 0, 1, mouseclick_callback);
 	emscripten_set_mousedown_callback("canvas", 0, 1, mousedown_callback);
