@@ -792,7 +792,6 @@ extern "C" {
 SDL_Surface *screen;
 ConvDiff convDiff(10,1);
 ConvDiff convDiffHigh(20,3);
-bool bigMem(true);
 std::queue<int> workQueue;
 bool convDiffInited(false);
 bool convDiffHighInited(false);
@@ -838,55 +837,57 @@ void touch_update(const EmscriptenTouchEvent *e)
 	}
 }
 
-// rgb(255,255,102) to rgb(255,140,0) to rgb(139,0,139) to rgb(0,0,139)
+// rgb(255,255,102) to rgb(232,203,72) to rgb(232,173,72) to rgb(232,125,72) 
+// to rgb(255,140,0) to rgb(255,0,0) to rgb(148,0,39) to rgb(255,0,157) 
+// to rgb(139,0,139) to rgb(61,145,58) to  rgb(58,145,127) to rgb(58,145,227) to rgb(0,0,139)
 const double third = 1.0/3.0;
 const double twothird = 2.0/3.0;
 
-double lambda(double val)
+#define NUMCOLORS 13
+int reds[NUMCOLORS];
+int greens[NUMCOLORS];
+int blues[NUMCOLORS];
+
+void MakeColors()
 {
-	return (val > 1.0 ? 1.0 : (val < 0.0 ? 0.0 : val));
+	reds[0]=255; greens[0]=255; blues[0]=102;
+	reds[1]=232; greens[1]=203; blues[1]=72;
+	reds[2]=232; greens[2]=173; blues[2]=72;
+	reds[3]=232; greens[3]=125; blues[3]=72;
+	reds[4]=255; greens[4]=140; blues[4]=0;
+	reds[5]=255; greens[5]=0; blues[5]=0;
+	reds[6]=148; greens[6]=0; blues[6]=39;
+	reds[7]=255; greens[7]=0; blues[7]=157;
+	reds[8]=139; greens[8]=0; blues[8]=139;
+	reds[9]=61; greens[9]=145; blues[9]=58;
+	reds[10]=58; greens[10]=145; blues[10]=127;
+	reds[11]=58; greens[11]=145; blues[11]=227;
+	reds[12]=0; greens[12]=0; blues[12]=139;
 }
 
-double red(double lambda)
+int getColorIndex(double val)
 {
-	return (
-		lambda > twothird ?
-			0.0*(lambda-twothird)/third + 139.0*(1.0-(lambda-twothird)/third)
-		:
-		(lambda > third ?
-			139.0*(lambda-third)/third + 255.0*(1.0-(lambda-third)/third)
-		:
-			255.0*(lambda)/third + 255.0*(1.0-(lambda)/third)
-		)
-	)/255.0;
+	return std::floor( (NUMCOLORS-1) * ((val+0.0001)/1.0002) );
 }
 
-double green(double lambda)
+double getLambda(double val, int colorIndex)
 {
-	return (
-		lambda > twothird ?
-			0.0*(lambda-twothird)/third + 0.0*(1.0-(lambda-twothird)/third)
-		:
-		(lambda > third ?
-			0.0*(lambda-third)/third + 140.0*(1.0-(lambda-third)/third)
-		:
-			140.0*(lambda)/third + 255.0*(1.0-(lambda)/third)
-		)
-	)/255.0; 
+	return (val-colorIndex/(1.0*NUMCOLORS-1.0))*(1.0*NUMCOLORS-1.0);
 }
 
-double blue(double lambda)
+double red(double lambda, int colorIndex)
 {
-	return (
-		lambda > twothird ?
-			139.0*(lambda-twothird)/third + 139.0*(1.0-(lambda-twothird)/third)
-		:
-		(lambda > third ?
-			139.0*(lambda-third)/third + 0.0*(1.0-(lambda-third)/third)
-		:
-			0.0*(lambda)/third + 102.0*(1.0-(lambda)/third)
-		)
-	)/255.0;
+	return ((1.0-lambda)*reds[colorIndex] + lambda*reds[colorIndex+1])/255.0;
+}
+
+double green(double lambda, int colorIndex)
+{
+	return ((1.0-lambda)*greens[colorIndex] + lambda*greens[colorIndex+1])/255.0; 
+}
+
+double blue(double lambda, int colorIndex)
+{
+	return ((1.0-lambda)*blues[colorIndex] + lambda*blues[colorIndex+1])/255.0;
 }
 
 void repaint(ConvDiff& cd)
@@ -907,14 +908,11 @@ void repaint(ConvDiff& cd)
 	for (int i = 0; i < 256; i++) {
 		for (int j = 0; j < 256; j++) {
 			double val = (cd.Eval((1.0*j)/256,(1.0*i)/256)-minphi)/(maxphi-minphi);
-			double lambda1 = lambda(val-0.05);
-			double lambda2 = lambda(val-0.025);
-			double lambda3 = lambda(val);
-			double lambda4 = lambda(val+0.025);
-			double lambda5 = lambda(val+0.05);
-			double valr = (1.0/5.0)*(red(lambda1)+red(lambda2)+red(lambda3)+red(lambda4)+red(lambda5))*255;
-			double valg = (1.0/5.0)*(green(lambda1)+green(lambda2)+green(lambda3)+green(lambda4)+green(lambda5))*255;
-			double valb = (1.0/5.0)*(blue(lambda1)+blue(lambda2)+blue(lambda3)+blue(lambda4)+blue(lambda5))*255;
+			int colorIndex = getColorIndex(val);
+			double lambda = getLambda(val,colorIndex);
+			double valr = red(lambda,colorIndex)*255.0;
+			double valg = green(lambda,colorIndex)*255.0;
+			double valb = blue(lambda,colorIndex)*255.0;
 			*((Uint32*)screen->pixels + i * 256 + j) = SDL_MapRGBA(screen->format, (int)valr, (int)valg, (int)valb, 255);
 		}
 	}
@@ -927,7 +925,7 @@ EM_BOOL mouseclick_callback(int eventType, const EmscriptenMouseEvent *e, void *
 {
 	mouse_update(e);
 	workQueue.push(0);
-	workQueue.push(bigMem ? 1 : -1);
+	workQueue.push(1);
 	mouseIsDown = false;
 	return 1;
 }
@@ -981,7 +979,7 @@ EM_BOOL touchend_callback(int eventType, const EmscriptenTouchEvent *e, void *us
 	touchIsStarted = false;
 	touch_update(e);
 	workQueue.push(0);
-	workQueue.push(bigMem ? 1 : -1);
+	workQueue.push(1);
 	return 1;
 }
 
@@ -1018,31 +1016,22 @@ void init()
 	}
 	else
 	{
-		if(!convDiffHighInited && bigMem)
+		if(!convDiffHighInited)
 		{
-			try 
-			{
-				convDiffHigh.init();
-				convDiffHighInited = true;
-			} 
-			catch (const std::exception&)
-			{
-				bigMem = false;
-			}
+			convDiffHigh.init();
+			convDiffHighInited = true;
 		}
 		
-		if(bigMem)
-		{
-			double matResid = convDiffHigh.Solve();
-			double solResid = convDiffHigh.SolResid();
-			printf("matrix residual %3.2e, spatial residual %3.2e\n", matResid, solResid);
-			repaint(convDiffHigh);
-		}
+		double matResid = convDiffHigh.Solve();
+		double solResid = convDiffHigh.SolResid();
+		printf("matrix residual %3.2e, spatial residual %3.2e\n", matResid, solResid);
+		repaint(convDiffHigh);
 	}
 }
 
 int main(int argc, char ** argv)
 {
+	MakeColors();
 	MakeWeights();
 	MakeLegendreDerivProducts();
 	MakeLegendreAltProducts();
