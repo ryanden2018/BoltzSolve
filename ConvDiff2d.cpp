@@ -11,7 +11,7 @@
 #include <SDL/SDL.h>
 #include <queue>
 
-#define PI 3.141592653589793238462
+const double PI = 3.141592653589793238462;
 
 typedef Eigen::SparseMatrix<double> SpMat;
 typedef Eigen::VectorXd Vec;
@@ -19,7 +19,7 @@ typedef Eigen::Triplet<double> Trip;
 typedef Eigen::MatrixXd Mat;
 
 // precomputable quantities
-#define POLYMAX 3
+const int POLYMAX = 10;
 double weights[22];
 double coords[22];
 double normLegendreDerivProducts[POLYMAX+1][POLYMAX+1];
@@ -35,6 +35,7 @@ private:
 	int N;
 	int K;
 	int dof;
+	double L;
 	double epsilon = -1.0;
 	double diffconst = 1.0;
 	double sigma0;
@@ -56,7 +57,7 @@ private:
 	void BuildMatUYM();
 	void BuildRHS();
 public:
-	ConvDiff(int N,int K) : N(N), K(K), dof(((N*N*(K+1)*(K+2))/2)), sigma0((K+1)*(K+2)*4+1)
+	ConvDiff(int N,int K,double L) : N(N), K(K), L(L), dof(((N*N*(K+1)*(K+2))/2)), sigma0((K+1)*(K+2)*4+1)
 	{}
 	void init()
 	{
@@ -73,6 +74,15 @@ public:
 		BuildMatUYP();
 		BuildMatUYM();
 		BuildRHS();
+	}
+	void reinit(int N, int K, double L)
+	{
+		this->N = N;
+		this->K = K;
+		this->L = L;
+		dof = ((N*N*(K+1)*(K+2))/2);
+		sigma0 = (K+1)*(K+2)*4+1;
+		init();
 	}
 	inline int idx(int ix, int iy, int px, int py) { return (((K+1)*(K+2)*(N*((ix+N)%N)+(iy+N)%N))/2 + ((px+py)*(px+py+1))/2 + px); }
 	double Eval(double x, double y);
@@ -225,7 +235,7 @@ void MakeLegendreAltProducts()
 
 void ConvDiff::BuildMatA()
 {
-	double h = 1.0/N;
+	double h = L/N;
 	double hbeta0 = std::pow(h,beta0);
 	std::vector<Trip> elems;
 
@@ -426,7 +436,7 @@ void ConvDiff::BuildMatA()
 
 void ConvDiff::BuildMatUXP()
 {
-	double h = 1.0/N;
+	double h = L/N;
 	std::vector<Trip> elems;
 
 	// Diagonal blocks
@@ -492,7 +502,7 @@ void ConvDiff::BuildMatUXP()
 
 void ConvDiff::BuildMatUXM()
 {
-	double h = 1.0/N;
+	double h = L/N;
 	std::vector<Trip> elems;
 
 	// Diagonal blocks
@@ -558,7 +568,7 @@ void ConvDiff::BuildMatUXM()
 
 void ConvDiff::BuildMatUYP()
 {
-	double h = 1.0/N;
+	double h = L/N;
 	std::vector<Trip> elems;
 
 	// Diagonal blocks
@@ -623,7 +633,7 @@ void ConvDiff::BuildMatUYP()
 
 void ConvDiff::BuildMatUYM()
 {
-	double h = 1.0/N;
+	double h = L/N;
 	std::vector<Trip> elems;
 
 	// Diagonal blocks
@@ -708,7 +718,7 @@ double EvalRHS(double x, double y)
 
 void ConvDiff::BuildRHS()
 {
-	double h = 1.0/N;
+	double h = L/N;
 	for(int ix = 0; ix < N; ix++)
 	{
 		for(int iy = 0; iy < N; iy++)
@@ -727,7 +737,7 @@ void ConvDiff::BuildRHS()
 							val += weights[j]*weights[k]
 								* LegendreEvalNorm(px,coords[j])
 								* LegendreEvalNorm(py,coords[k])
-								* EvalRHS(xc+coords[j]*(h/2.0), yc+coords[k]*(h/2.0));
+								* EvalRHS((xc+coords[j]*(h/2.0))/L, (yc+coords[k]*(h/2.0))/L);
 						}
 					}
 					rhs(idx(ix,iy,px,py)) = val;
@@ -740,11 +750,11 @@ void ConvDiff::BuildRHS()
 
 double ConvDiff::Eval(double x, double y)
 {
-	if(x < 0.0) return Eval(x+1.0,y);
-	if(x>1.0) return Eval(x-1.0,y);
-	if(y<0.0) return Eval(x,y+1.0);
-	if(y > 1.0) return Eval(x,y-1.0);
-	double h = 1.0/N;
+	if(x < 0.0) return Eval(x+L,y);
+	if(x>L) return Eval(x-L,y);
+	if(y<0.0) return Eval(x,y+L);
+	if(y > L) return Eval(x,y-L);
+	double h = L/N;
 	int ix = x/h;
 	int iy = y/h;
 	double val = 0.0;
@@ -765,7 +775,7 @@ double ConvDiff::SolResid()
 	int numpts = N*N;
 	double resid = 0.0;
 	double sizeRHS = 0.0;
-	double h = 1.0/N;
+	double h = L/N;
 	for(int i = 0; i < N; i++)
 	{
 		for(int j = 0; j < N; j++)
@@ -776,9 +786,9 @@ double ConvDiff::SolResid()
 			val -= diffconst*( -Eval(xx+4.0*h,yy)/560.0 + Eval(xx+3.0*h,yy)*8.0/315.0  -Eval(xx+2.0*h,yy)/5.0+Eval(xx+h,yy)*8.0/5.0+Eval(xx-h,yy)*8.0/5.0-Eval(xx-2.0*h,yy)/5.0 + Eval(xx-3.0*h,yy)*8.0/315.0 - Eval(xx-4.0*h,yy)/560.0 - Eval(xx,yy+4.0*h)/560.0+Eval(xx,yy+3.0*h)*8.0/315.0 -Eval(xx,yy+2.0*h)/5.0+Eval(xx,yy+h)*8.0/5.0+Eval(xx,yy-h)*8.0/5.0-Eval(xx,yy-2.0*h)/5.0 + Eval(xx,yy-3.0*h)*8.0/315.0 - Eval(xx,yy-4.0*h)/560.0 - Eval(xx,yy)*2.0*205.0/72.0 )/(h*h);
 			val += ux * (-Eval(xx+4.0*h,yy)/280.0+Eval(xx+3.0*h,yy)*4.0/105.0-Eval(xx+2.0*h,yy)/5.0+Eval(xx+h,yy)*4.0/5.0-Eval(xx-h,yy)*4.0/5.0+Eval(xx-2.0*h,yy)/5.0-Eval(xx-3.0*h,yy)*4.0/105.0+Eval(xx-4.0*h,yy)/280.0)/(h);
 			val += uy * (-Eval(xx,yy+4.0*h)/280.0+Eval(xx,yy+3.0*h)*4.0/105.0-Eval(xx,yy+2.0*h)/5.0+Eval(xx,yy+h)*4.0/5.0-Eval(xx,yy-h)*4.0/5.0+Eval(xx,yy-2.0*h)/5.0-Eval(xx,yy-3.0*h)*4.0/105.0+Eval(xx,yy-4.0*h)/280.0)/(h);
-			val -= EvalRHS(xx,yy);
+			val -= EvalRHS(xx/L,yy/L);
 			resid += std::pow(val,2);
-			sizeRHS += std::pow(EvalRHS(xx,yy),2);
+			sizeRHS += std::pow(EvalRHS(xx/L,yy/L),2);
 		}
 	}
 	resid = std::pow(resid/numpts,0.5);
@@ -788,9 +798,10 @@ double ConvDiff::SolResid()
 
 extern "C" {
 
+double len = 100.0;
 SDL_Surface *screen;
-ConvDiff convDiff(10,1);
-ConvDiff convDiffHigh(20,3);
+ConvDiff convDiff(10,1,len);
+ConvDiff convDiffHigh(20,3,len);
 std::queue<int> workQueue;
 bool convDiffInited(false);
 bool convDiffHighInited(false);
@@ -836,59 +847,30 @@ void touch_update(const EmscriptenTouchEvent *e)
 	}
 }
 
-// rgb(255,255,102) to rgb(232,203,72) to rgb(232,173,72) to rgb(232,125,72) 
-// to rgb(255,140,0) to rgb(255,0,0) to rgb(148,0,39) to rgb(255,0,157) 
-// to rgb(139,0,139) to rgb(61,145,58) to  rgb(58,145,127) to rgb(58,145,227) to rgb(0,0,139)
-const double third = 1.0/3.0;
-const double twothird = 2.0/3.0;
-
-#define NUMCOLORS 13
-int reds[NUMCOLORS];
-int greens[NUMCOLORS];
-int blues[NUMCOLORS];
-
-void MakeColors()
-{
-	reds[0]=255; greens[0]=255; blues[0]=102;
-	reds[1]=232; greens[1]=203; blues[1]=72;
-	reds[2]=232; greens[2]=173; blues[2]=72;
-	reds[3]=232; greens[3]=125; blues[3]=72;
-	reds[4]=255; greens[4]=140; blues[4]=0;
-	reds[5]=255; greens[5]=0; blues[5]=0;
-	reds[6]=148; greens[6]=0; blues[6]=39;
-	reds[7]=255; greens[7]=0; blues[7]=157;
-	reds[8]=139; greens[8]=0; blues[8]=139;
-	reds[9]=61; greens[9]=145; blues[9]=58;
-	reds[10]=58; greens[10]=145; blues[10]=127;
-	reds[11]=58; greens[11]=145; blues[11]=227;
-	reds[12]=0; greens[12]=0; blues[12]=139;
-}
+const int NUMLEVELS = 13;
 
 int getColorIndex(double val)
 {
-	return std::floor( (NUMCOLORS-1) * ((val+0.0001)/1.0002) );
+	return std::floor( (NUMLEVELS-1) * ((val+0.0001)/1.0002) );
 }
 
 double getLambda(double val, int colorIndex)
 {
-	return (val-colorIndex/(1.0*NUMCOLORS-1.0))*(1.0*NUMCOLORS-1.0);
+	return (val-colorIndex/(1.0*NUMLEVELS-1.0))*(1.0*NUMLEVELS-1.0);
 }
 
 double red(double lambda, int colorIndex)
 {
-	//return ((1.0-lambda)*reds[colorIndex] + lambda*reds[colorIndex+1])/255.0;
 	return lambda>0.5 ? 1.0 : 254.0;
 }
 
 double green(double lambda, int colorIndex)
 {
-	//return ((1.0-lambda)*greens[colorIndex] + lambda*greens[colorIndex+1])/255.0; 
 	return lambda>0.5 ? 1.0 : 254.0;
 }
 
 double blue(double lambda, int colorIndex)
 {
-	//return ((1.0-lambda)*blues[colorIndex] + lambda*blues[colorIndex+1])/255.0;
 	return lambda>0.5 ? 1.0 : 254.0;
 }
 
@@ -900,7 +882,7 @@ void repaint(ConvDiff& cd)
 	{
 		for(int j = 0; j < 100; j++)
 		{
-			double val = cd.Eval((1.0*j)/100,(1.0*i)/100);
+			double val = cd.Eval(len*(1.0*j)/100,len*(1.0*i)/100);
 			if(val > maxphi) maxphi = val;
 			if(val < minphi) minphi = val;
 		}
@@ -909,7 +891,7 @@ void repaint(ConvDiff& cd)
 	if (SDL_MUSTLOCK(screen)) SDL_LockSurface(screen);
 	for (int i = 0; i < 700; i++) {
 		for (int j = 0; j < 700; j++) {
-			double val = (cd.Eval((1.0*j)/700,(1.0*i)/700)-minphi)/(maxphi-minphi);
+			double val = (cd.Eval(len*(1.0*j)/700,len*(1.0*i)/700)-minphi)/(maxphi-minphi);
 			int colorIndex = getColorIndex(val);
 			double lambda = getLambda(val,colorIndex);
 			double valr = red(lambda,colorIndex)*255.0;
@@ -991,6 +973,12 @@ EM_BOOL touchcancel_callback(int eventType, const EmscriptenTouchEvent *e, void 
 	return 1;
 }
 
+void EMSCRIPTEN_KEEPALIVE rebuild(int N, int K)
+{
+	convDiffHigh.reinit(N,K > POLYMAX ? POLYMAX : K,len);
+	workQueue.push(1);
+}
+
 int n = 0;
 void init()
 {
@@ -1033,7 +1021,6 @@ void init()
 
 int main(int argc, char ** argv)
 {
-	MakeColors();
 	MakeWeights();
 	MakeLegendreDerivProducts();
 	MakeLegendreAltProducts();

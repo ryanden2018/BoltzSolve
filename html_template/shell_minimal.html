@@ -69,6 +69,7 @@
       <progress value="0" max="100" id="progress" hidden=1></progress>  
     </div>
     <div class="emscripten_border">
+      <button class="btn">Click</button>
       <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
     </div>
 
@@ -212,6 +213,15 @@ down to WebAssembly.</div>
           if (text) Module.printErr('[post-exception status] ' + text);
         };
       };
+      document.querySelector(".btn")
+        .addEventListener("click", function() {
+          Module.ccall(
+            'rebuild',
+            null,
+            ['number','number'],
+            [40,5]
+          );
+        });
     </script>
     {{{ SCRIPT }}}
   </body>
