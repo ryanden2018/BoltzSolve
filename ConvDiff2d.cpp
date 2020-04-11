@@ -10,6 +10,7 @@
 #include <emscripten/html5.h>
 #include <SDL/SDL.h>
 #include <queue>
+#include <unsupported/Eigen/FFT>
 
 const double PI = 3.141592653589793238462;
 
@@ -796,11 +797,97 @@ double ConvDiff::SolResid()
 	return resid/sizeRHS;
 }
 
+void FFT2D(Mat& input,Mat& outputRe,Mat& outputIm)
+{
+	Eigen::FFT<double> fft;
+	int rows = input.rows();
+	int cols = input.cols();
+	for(int i = 0; i < rows; i++)
+	{
+		std::vector<double> row;
+		for(int j = 0; j < cols; j++) row.push_back(input(i,j));
+		std::vector<std::complex<double>> freqs;
+		fft.fwd(freqs,row);
+		for(int j = 0; j < cols; j++)
+		{
+			outputRe(i,j) = freqs[j].real();
+			outputIm(i,j) = freqs[j].imag();
+		}
+	}
+	for(int j = 0; j < cols; j++)
+	{
+		std::vector<double> colRe;
+		std::vector<double> colIm;
+		for(int i = 0; i < rows; i++)
+		{
+			colRe.push_back(outputRe(i,j));
+			colIm.push_back(outputIm(i,j));
+		}
+		std::vector<std::complex<double>> freqsRe;
+		std::vector<std::complex<double>> freqsIm;
+		fft.fwd(freqsRe,colRe);
+		fft.fwd(freqsIm,colIm);
+		for(int i = 0; i < rows; i++)
+		{
+			outputRe(i,j) = freqsRe[i].real() - freqsIm[i].imag();
+			outputIm(i,j) = freqsRe[i].imag() + freqsIm[i].real();
+		}
+	}
+}
+
+void IFFT2D(Mat& inputRe, Mat& inputIm,Mat& outputRe,Mat& outputIm)
+{
+	Eigen::FFT<double> fft;
+	int rows = inputRe.rows();
+	int cols = inputRe.cols();
+	for(int i = 0; i < rows; i++)
+	{
+		std::vector<std::complex<double>> row;
+		for(int j = 0; j < cols; j++)
+		{
+			std::complex<double> elem(inputRe(i,j),inputIm(i,j));
+			row.push_back(elem);
+		}
+		std::vector<std::complex<double>> res;
+		fft.inv(res,row);
+		for(int j = 0; j < cols; j++)
+		{
+			outputRe(i,j) = res[j].real();
+			outputIm(i,j) = res[j].imag();
+		}
+	}
+	for(int j = 0; j < cols; j++)
+	{
+		std::vector<std::complex<double>> col;
+		for(int i = 0; i < rows; i++)
+		{
+			std::complex<double> elem(outputRe(i,j),outputIm(i,j));
+			col.push_back(elem);
+		}
+		std::vector<std::complex<double>> res;
+		fft.inv(res,col);
+		for(int i = 0; i < rows; i++)
+		{
+			outputRe(i,j) = res[i].real();
+			outputIm(i,j) = res[i].imag();
+		}
+	}
+}
+
 extern "C" {
 
-double len = 100.0;
+
+Mat dispRe(700,700);
+Mat dispIm(700,700);
+Mat dispTemp(11,11);
+Mat dispTempFFTRe(11,11);
+Mat dispTempFFTIm(11,11);
+Mat dispFFTRe(700,700);
+Mat dispFFTIm(700,700);
+
+double len = 1.0;
 SDL_Surface *screen;
-ConvDiff convDiff(10,1,len);
+ConvDiff convDiff(11,1,len);
 ConvDiff convDiffHigh(20,3,len);
 std::queue<int> workQueue;
 bool convDiffInited(false);
@@ -859,30 +946,30 @@ double getLambda(double val, int colorIndex)
 	return (val-colorIndex/(1.0*NUMLEVELS-1.0))*(1.0*NUMLEVELS-1.0);
 }
 
-double red(double lambda, int colorIndex)
+double red(double lambda, int colorIndex, double low = 1.0, double high = 254.0)
 {
-	return lambda>0.5 ? 1.0 : 254.0;
+	return lambda>0.5 ? low : high;
 }
 
-double green(double lambda, int colorIndex)
+double green(double lambda, int colorIndex, double low = 1.0, double high = 254.0)
 {
-	return lambda>0.5 ? 1.0 : 254.0;
+	return lambda>0.5 ? low : high;
 }
 
-double blue(double lambda, int colorIndex)
+double blue(double lambda, int colorIndex, double low = 1.0, double high = 254.0)
 {
-	return lambda>0.5 ? 1.0 : 254.0;
+	return lambda>0.5 ? low : high;
 }
 
-void repaint(ConvDiff& cd)
+void repaintHigh()
 {
-	double maxphi = cd.Eval(0.0, 0.0);
-	double minphi = cd.Eval(0.0,0.0);
+	double maxphi = convDiffHigh.Eval(0.0, 0.0);
+	double minphi = convDiffHigh.Eval(0.0,0.0);
 	for(int i = 0; i < 100; i++)
 	{
 		for(int j = 0; j < 100; j++)
 		{
-			double val = cd.Eval(len*(1.0*j)/100,len*(1.0*i)/100);
+			double val = convDiffHigh.Eval(len*(1.0*j)/100,len*(1.0*i)/100);
 			if(val > maxphi) maxphi = val;
 			if(val < minphi) minphi = val;
 		}
@@ -891,12 +978,85 @@ void repaint(ConvDiff& cd)
 	if (SDL_MUSTLOCK(screen)) SDL_LockSurface(screen);
 	for (int i = 0; i < 700; i++) {
 		for (int j = 0; j < 700; j++) {
-			double val = (cd.Eval(len*(1.0*j)/700,len*(1.0*i)/700)-minphi)/(maxphi-minphi);
+			double val = (convDiffHigh.Eval(len*(1.0*j)/700,len*(1.0*i)/700)-minphi)/(maxphi-minphi);
 			int colorIndex = getColorIndex(val);
 			double lambda = getLambda(val,colorIndex);
 			double valr = red(lambda,colorIndex)*255.0;
 			double valg = green(lambda,colorIndex)*255.0;
 			double valb = blue(lambda,colorIndex)*255.0;
+			*((Uint32*)screen->pixels + i * 700 + j) = SDL_MapRGBA(screen->format, (int)valr, (int)valg, (int)valb, 255);
+		}
+	}
+	if (SDL_MUSTLOCK(screen)) SDL_UnlockSurface(screen);
+	SDL_Flip(screen); 
+}
+
+
+void repaintLow()
+{
+
+	for(int i = 0; i < 11; i++)
+	{
+		for(int j = 0; j < 11; j++)
+		{
+			dispTemp(i,j) = (convDiff.Eval(len*(1.0*(j+0.5))/11,len*(1.0*(i+0.5))/11));
+		}
+	}
+
+	FFT2D(dispTemp,dispTempFFTRe,dispTempFFTIm);
+
+	for(int i = 0; i < 6; i++)
+	{
+		for(int j = 0; j < 6; j++)
+		{
+			dispFFTRe(i,j) = dispTempFFTRe(i,j);
+			dispFFTIm(i,j) = dispTempFFTIm(i,j);
+		}
+	}
+
+	for(int i = 1; i < 6; i++)
+	{
+		for(int j = 0; j < 6; j++)
+		{
+			dispFFTRe(700-i,j) = dispTempFFTRe(11-i,j);
+			dispFFTIm(700-i,j) = dispTempFFTIm(11-i,j);
+		}
+	}
+
+	for(int i = 0; i < 6; i++)
+	{
+		for(int j = 1; j < 6; j++)
+		{
+			dispFFTRe(i,700-j) = dispTempFFTRe(i,11-j);
+			dispFFTIm(i,700-j) = dispTempFFTIm(i,11-j);
+		}
+	}
+
+	for(int i = 1; i < 6; i++)
+	{
+		for(int j = 1; j < 6; j++)
+		{
+			dispFFTRe(700-i,700-j) = dispTempFFTRe(11-i,11-j);
+			dispFFTIm(700-i,700-j) = dispTempFFTIm(11-i,11-j);
+		}
+	}
+
+	IFFT2D(dispFFTRe,dispFFTIm,dispRe,dispIm);
+
+	double maxphi = dispRe.maxCoeff();
+	double minphi = dispRe.minCoeff();
+
+	
+
+	if (SDL_MUSTLOCK(screen)) SDL_LockSurface(screen);
+	for (int i = 0; i < 700; i++) {
+		for (int j = 0; j < 700; j++) {
+			double val = (dispRe((i+700-32)%700,(j+700-32)%700)-minphi)/(maxphi-minphi);
+			int colorIndex = getColorIndex(val);
+			double lambda = getLambda(val,colorIndex);
+			double valr = red(lambda,colorIndex,1.0,175.0)*255.0;
+			double valg = green(lambda,colorIndex,1.0,175.0)*255.0;
+			double valb = blue(lambda,colorIndex,1.0,175.0)*255.0;
 			*((Uint32*)screen->pixels + i * 700 + j) = SDL_MapRGBA(screen->format, (int)valr, (int)valg, (int)valb, 255);
 		}
 	}
@@ -1002,7 +1162,7 @@ void init()
 			convDiffInited = true;
 		}
 		convDiff.Solve();
-		repaint(convDiff);
+		repaintLow();
 	}
 	else
 	{
@@ -1015,7 +1175,7 @@ void init()
 		double matResid = convDiffHigh.Solve();
 		double solResid = convDiffHigh.SolResid();
 		printf("matrix residual %3.2e, spatial residual %3.2e\n", matResid, solResid);
-		repaint(convDiffHigh);
+		repaintHigh();
 	}
 }
 
