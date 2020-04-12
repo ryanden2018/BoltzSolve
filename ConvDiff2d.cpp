@@ -876,14 +876,15 @@ void IFFT2D(Mat& inputRe, Mat& inputIm,Mat& outputRe,Mat& outputIm)
 
 extern "C" {
 
+const int NUMPIXELS = 693;
 
-Mat dispRe(700,700);
-Mat dispIm(700,700);
+Mat dispRe(NUMPIXELS,NUMPIXELS);
+Mat dispIm(NUMPIXELS,NUMPIXELS);
 Mat dispTemp(11,11);
 Mat dispTempFFTRe(11,11);
 Mat dispTempFFTIm(11,11);
-Mat dispFFTRe(700,700);
-Mat dispFFTIm(700,700);
+Mat dispFFTRe(NUMPIXELS,NUMPIXELS);
+Mat dispFFTIm(NUMPIXELS,NUMPIXELS);
 
 double len = 1.0;
 SDL_Surface *screen;
@@ -976,15 +977,16 @@ void repaintHigh()
 	}
 
 	if (SDL_MUSTLOCK(screen)) SDL_LockSurface(screen);
-	for (int i = 0; i < 700; i++) {
-		for (int j = 0; j < 700; j++) {
-			double val = (convDiffHigh.Eval(len*(1.0*j)/700,len*(1.0*i)/700)-minphi)/(maxphi-minphi);
+	for (int i = 0; i < NUMPIXELS; i++) {
+		for (int j = 0; j < NUMPIXELS; j++) {
+			double val = (convDiffHigh.Eval(len*(1.0*j)/NUMPIXELS,len*(1.0*i)/NUMPIXELS)-minphi)/(maxphi-minphi);
+			val = 0.97*(val-0.5)+0.5;
 			int colorIndex = getColorIndex(val);
 			double lambda = getLambda(val,colorIndex);
 			double valr = red(lambda,colorIndex)*255.0;
 			double valg = green(lambda,colorIndex)*255.0;
 			double valb = blue(lambda,colorIndex)*255.0;
-			*((Uint32*)screen->pixels + i * 700 + j) = SDL_MapRGBA(screen->format, (int)valr, (int)valg, (int)valb, 255);
+			*((Uint32*)screen->pixels + i * NUMPIXELS + j) = SDL_MapRGBA(screen->format, (int)valr, (int)valg, (int)valb, 255);
 		}
 	}
 	if (SDL_MUSTLOCK(screen)) SDL_UnlockSurface(screen);
@@ -1018,8 +1020,8 @@ void repaintLow()
 	{
 		for(int j = 0; j < 6; j++)
 		{
-			dispFFTRe(700-i,j) = dispTempFFTRe(11-i,j);
-			dispFFTIm(700-i,j) = dispTempFFTIm(11-i,j);
+			dispFFTRe(NUMPIXELS-i,j) = dispTempFFTRe(11-i,j);
+			dispFFTIm(NUMPIXELS-i,j) = dispTempFFTIm(11-i,j);
 		}
 	}
 
@@ -1027,8 +1029,8 @@ void repaintLow()
 	{
 		for(int j = 1; j < 6; j++)
 		{
-			dispFFTRe(i,700-j) = dispTempFFTRe(i,11-j);
-			dispFFTIm(i,700-j) = dispTempFFTIm(i,11-j);
+			dispFFTRe(i,NUMPIXELS-j) = dispTempFFTRe(i,11-j);
+			dispFFTIm(i,NUMPIXELS-j) = dispTempFFTIm(i,11-j);
 		}
 	}
 
@@ -1036,8 +1038,8 @@ void repaintLow()
 	{
 		for(int j = 1; j < 6; j++)
 		{
-			dispFFTRe(700-i,700-j) = dispTempFFTRe(11-i,11-j);
-			dispFFTIm(700-i,700-j) = dispTempFFTIm(11-i,11-j);
+			dispFFTRe(NUMPIXELS-i,NUMPIXELS-j) = dispTempFFTRe(11-i,11-j);
+			dispFFTIm(NUMPIXELS-i,NUMPIXELS-j) = dispTempFFTIm(11-i,11-j);
 		}
 	}
 
@@ -1049,15 +1051,16 @@ void repaintLow()
 	
 
 	if (SDL_MUSTLOCK(screen)) SDL_LockSurface(screen);
-	for (int i = 0; i < 700; i++) {
-		for (int j = 0; j < 700; j++) {
-			double val = (dispRe((i+700-32)%700,(j+700-32)%700)-minphi)/(maxphi-minphi);
+	for (int i = 0; i < NUMPIXELS; i++) {
+		for (int j = 0; j < NUMPIXELS; j++) {
+			double val = (dispRe((i+NUMPIXELS-32)%NUMPIXELS,(j+NUMPIXELS-32)%NUMPIXELS)-minphi)/(maxphi-minphi);
+			val = 0.97*(val-0.5)+0.5;
 			int colorIndex = getColorIndex(val);
 			double lambda = getLambda(val,colorIndex);
 			double valr = red(lambda,colorIndex,1.0,175.0)*255.0;
 			double valg = green(lambda,colorIndex,1.0,175.0)*255.0;
 			double valb = blue(lambda,colorIndex,1.0,175.0)*255.0;
-			*((Uint32*)screen->pixels + i * 700 + j) = SDL_MapRGBA(screen->format, (int)valr, (int)valg, (int)valb, 255);
+			*((Uint32*)screen->pixels + i * NUMPIXELS + j) = SDL_MapRGBA(screen->format, (int)valr, (int)valg, (int)valb, 255);
 		}
 	}
 	if (SDL_MUSTLOCK(screen)) SDL_UnlockSurface(screen);
@@ -1089,6 +1092,8 @@ EM_BOOL mouseup_callback(int eventType, const EmscriptenMouseEvent *e, void *use
 EM_BOOL mousedown_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
 {
 	mouseIsDown = true;
+	mouse_update(e);
+	workQueue.push(0);
 	return 1;
 }
 
@@ -1115,6 +1120,8 @@ EM_BOOL touchmove_callback(int eventType, const EmscriptenTouchEvent *e, void *u
 EM_BOOL touchstart_callback(int eventType, const EmscriptenTouchEvent *e, void *userData)
 {
 	touchIsStarted = true;
+	touch_update(e);
+	workQueue.push(0);
 	return 1;
 }
 
@@ -1190,7 +1197,7 @@ int main(int argc, char ** argv)
 	workQueue.push(1);
 	
 	SDL_Init(SDL_INIT_VIDEO);
-	screen = SDL_SetVideoMode(700, 700, 32, SDL_SWSURFACE);
+	screen = SDL_SetVideoMode(NUMPIXELS, NUMPIXELS, 32, SDL_SWSURFACE);
 
 	emscripten_set_click_callback("canvas", 0, 1, mouseclick_callback);
 	emscripten_set_mousedown_callback("canvas", 0, 1, mousedown_callback);

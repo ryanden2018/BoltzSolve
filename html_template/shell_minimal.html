@@ -17,7 +17,7 @@
       div.emscripten_border { border: 1px solid black; }
       div.eqn { text-align: center; }
       /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
-      canvas.emscripten { border: 0px none; background-color: black; width: 700px; height: 700px; }
+      canvas.emscripten { border: 0px none; background-color: black; width: 693px; height: 693px; }
 
       .spinner {
         height: 50px;
@@ -112,7 +112,7 @@ The right-hand side is given by the following formula:</div>
 </div>
 
 <div class="text2"><i>Remark:</i>&nbsp; The astute reader will observe that the problem statement is given in a smooth periodic 
-setting, and hence, a spectral method would be most appropriate. &nbsp;<b>This is true.</b>&nbsp; However, spectral methods
+setting, and hence, a Fourier-based method would be most appropriate. &nbsp;<b>This is true.</b>&nbsp; However, Fourier-based methods
 are generally difficult to employ in complex geometries or in non-smooth functional settings. FVM, FEM and DG methods are 
 well-suited to complex geometries and non-smooth function spaces. The point of this demo was to demonstrate
 the feasibility of a generic PDE solver in a web browser, and a generic solver like DG is the correct choice for 
