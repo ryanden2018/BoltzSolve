@@ -949,17 +949,17 @@ double getLambda(double val, int colorIndex)
 
 double red(double lambda, int colorIndex, double low = 1.0, double high = 254.0)
 {
-	return lambda>0.5 ? low : high;
+	return 0.47<lambda && lambda<0.53 ? high : low;
 }
 
 double green(double lambda, int colorIndex, double low = 1.0, double high = 254.0)
 {
-	return lambda>0.5 ? low : high;
+	return 0.47<lambda && lambda<0.53 ? high : low;
 }
 
 double blue(double lambda, int colorIndex, double low = 1.0, double high = 254.0)
 {
-	return lambda>0.5 ? low : high;
+	return 0.47<lambda && lambda<0.53 ? high : low;
 }
 
 void repaintHigh()
@@ -1185,6 +1185,7 @@ void init()
 		repaintHigh();
 	}
 }
+
 
 int main(int argc, char ** argv)
 {
