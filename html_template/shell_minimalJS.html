@@ -102,24 +102,17 @@ The right-hand side is given by the following formula:</div>
 <div class="text2">where </div>
 <div class="eqn"><img src="eq4.png" height="75" /></div>
 
-<div class="text2">The numerical method for this demo is the Discontinuous Gelerkin (DG) method (with penalty to handle the diffusion).
+<div class="text2">The numerical method for this demo is the Discontinuous Gelerkin (DG) method (with interior penalty to handle the diffusion).
   DG is an alternative to classical finite element (FEM) and finite volume (FVM) methods, and arises by combining aspects
   of both. In the DG method, we expand the solution in a basis of piecewise polynomial functions, and integrate against
   test functions from the same space to generate a discrete system of equations. In particular the computed solution is 
-  typically discontinuous. Compared to FVM, DG provides simpler facilities for producing high-order methods. 
-  Compared to FEM, DG provides greater flexibility in gridding, and hence, adaptive refinement. Note carefully that in both 
-  cases we are referring to the &nbsp;<i>ease</i>&nbsp; of obtaining a benefit; FVM can be high-order and FEM can be made adaptive.
+  typically discontinuous. 
 </div>
 
-<div class="text2"><i>Remark:</i>&nbsp; The astute reader will observe that the problem statement is given in a smooth periodic 
-setting, and hence, a Fourier-based method would be most appropriate. &nbsp;<b>This is true.</b>&nbsp; However, Fourier-based methods
-are generally difficult to employ in complex geometries or in non-smooth functional settings. FVM, FEM and DG methods are 
-well-suited to complex geometries and non-smooth function spaces. The point of this demo was to demonstrate
-the feasibility of a generic PDE solver in a web browser, and a generic solver like DG is the correct choice for 
-such a demonstration. </div>
 
 <div class="text2">The demo actually solves two problems: a fast one, and a slow one. The fast solve employs a 11 by 11 grid with 
-  linear basis functions in each cell (a 363 by 363 system). The slow solve employs a 20 by 20 grid with cubic basis functions in each cell (a 4000 by 4000 system).
+  linear basis functions in each cell (a 363 by 363 system). The slow solve employs a 3 by 3 grid with tenth order 
+   basis functions in each cell (a 594 by 594 system).
 </div>
 
 <div class="text2">
@@ -129,7 +122,7 @@ such a demonstration. </div>
 </div>
 <div class="eqn"><img src="eq5.png" height="100" /></div>
 <div class="text2">To compute the derivatives appearing in the residual, high-order finite difference formulas are applied to the 
-  solution values evaluated at cell centers.
+  solution values evaluated at points which are chosen away from cell boundaries.
 </div>
 <div class="text2">The DG solver is written in C++, using the &nbsp;<a href="http://eigen.tuxfamily.org" target="_blank">Eigen</a>&nbsp; 
 package for linear algebra and &nbsp;<a href="https://emscripten.org/" target="_blank">Emscripten</a>&nbsp; to compile 

@@ -773,13 +773,14 @@ double ConvDiff::Eval(double x, double y)
 
 double ConvDiff::SolResid()
 {
-	int numpts = N*N;
+	int sp = 21;
+	int numpts = sp*sp;
 	double resid = 0.0;
 	double sizeRHS = 0.0;
-	double h = L/N;
-	for(int i = 0; i < N; i++)
+	double h = L/sp;
+	for(int i = 0; i < sp; i++)
 	{
-		for(int j = 0; j < N; j++)
+		for(int j = 0; j < sp; j++)
 		{
 			double xx = (0.5+i)*h;
 			double yy = (0.5+j)*h;
@@ -889,7 +890,7 @@ Mat dispFFTIm(NUMPIXELS,NUMPIXELS);
 double len = 1.0;
 SDL_Surface *screen;
 ConvDiff convDiff(11,1,len);
-ConvDiff convDiffHigh(20,3,len);
+ConvDiff convDiffHigh(3,10,len);
 std::queue<int> workQueue;
 bool convDiffInited(false);
 bool convDiffHighInited(false);
