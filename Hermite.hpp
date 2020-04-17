@@ -1,7 +1,7 @@
 #ifndef HERMITE_HPP
 #define HERMITE_HPP
 
-const double HERMITE_PI = 3.141592653589793238462;
+constexpr double HERMITE_PI = 3.141592653589793238462;
 
 constexpr double const_exp_helper(double x)
 {
