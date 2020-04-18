@@ -2,7 +2,7 @@
 #define GAUSSQUAD_HPP
 
 // {weight,coord}
-constexpr double gaussWtsCrds[22][2]
+double gaussWtsCrds[22][2]
 {
     { 0.1392518728556320, -0.0697392733197222},
     { 0.1392518728556320, 0.0697392733197222},
