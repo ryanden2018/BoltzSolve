@@ -26,7 +26,7 @@ double hermiteDerivEval(double x, int n)
 {
     return n <= 0
     ?
-    (-1.0) * x * std::exp(-0.5 * x * x) * / HERMITE_PI_QUARTER
+    (-1.0) * x * std::exp(-0.5 * x * x) / HERMITE_PI_QUARTER
     :
     std::sqrt(n/2.0)*hermiteEval(x,n-1)-std::sqrt((n+1.0)/2.0)*hermiteEval(x,n+1);
 }

@@ -1,0 +1,20 @@
+<html>
+    <head>
+        <title>Boltzmann</title>
+    </head>
+    <body>
+        <script src="./Boltz.js"></script>
+        <script src="./gpujs/gpu-browser.js"></script>
+        <script>
+            let gpu = new GPU();
+            gpu.addFunction(hermiteEval, {argumentTypes: {x: 'Float',n:'Integer'}, returnType: 'Float'});
+            gpu.addFunction(hermiteDerivEval, {argumentTypes: {x: 'Float',n:'Integer'}, returnType: 'Float'});
+            let kernel = gpu.createKernel(function(n) {
+                return hermiteDerivEval(1.0,10); // hermiteDerivEval(1.0+this.thread.x/512.0,n)*hermiteDerivEval(1.0+this.thread.y/512.0,n);
+            }).setOutput([12,12]);
+            let out = kernel(10);
+            console.log(JSON.stringify(out));
+            console.log(hermiteDerivEval(1.0,10));
+        </script>
+    </body>
+</html>
