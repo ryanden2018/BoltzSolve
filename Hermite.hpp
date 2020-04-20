@@ -1,11 +1,9 @@
 #ifndef HERMITE_HPP
 #define HERMITE_HPP
-
 #include <cmath>
-
 const double HERMITE_PI = 3.141592653589793238462;
 
-const double HERMITE_PI_QUARTER = std::pow(HERMITE_PI,0.25);
+const double HERMITE_PI_QUARTER = std::sqrt(std::sqrt(HERMITE_PI));
 
 double hermiteEval(double x, int n)
 {
@@ -30,5 +28,6 @@ double hermiteDerivEval(double x, int n)
     :
     std::sqrt(n/2.0)*hermiteEval(x,n-1)-std::sqrt((n+1.0)/2.0)*hermiteEval(x,n+1);
 }
+
 
 #endif

@@ -1,7 +1,11 @@
 #include <cstdio>
-#include "Hermite.hpp"
+#include <cstdlib>
+#include "BoltzQ.hpp"
 int main()
 {
-    printf("%20.19e\n",hermiteDerivEval(1.0,10));
+
+    // printf("%20.19e\n",qMaxwell[0][0][0]);
+    // printf("%20.19e\n",qHardSphere[0][0][0]);
+
     return 0;
 }

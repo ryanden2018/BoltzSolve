@@ -8,4 +8,4 @@ BoltzSolve: BoltzSolve.cpp
 	-s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" \
 	-o ./out/BoltzSolve.html \
 	--shell-file ./html_template/shell_minimal.html
-
+	
