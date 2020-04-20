@@ -1,45 +1,65 @@
 #include "BoltzQ.hpp"
 #include <cstdio>
+#include <iostream>
 
 int main()
 {
-    int N = 3;
-    printf("#ifndef BOLTZQVALS_HPP\n");
-    printf("#define BOLTZQVALS_HPP\n");
-    printf("const double boltzQMaxwell[%d][%d][%d] = \n", N, N, N);
-    printf("{\n");
+    int N = 5;
+    printf("#ifndef BOLTZQVALS_HPP");
+    std::cout << std::endl;
+    printf("#define BOLTZQVALS_HPP");
+    std::cout << std::endl;
+    printf("const double boltzQMaxwell[%d][%d][%d] = ", N, N, N);
+    std::cout << std::endl;
+    printf("{");
+    std::cout << std::endl;
     for(int i = 0; i < N; i++)
     {
-        printf("    {\n");
+        printf("    {");
+        std::cout << std::endl;
         for(int j = 0; j < N; j++)
         {
-            printf("        {\n");
+            printf("        {");
+            std::cout << std::endl;
             for(int k = 0; k < N; k++)
             {
-                printf(k == N-1 ? "            %20.19e\n" : "            %20.19e,\n",computeBoltzQ(i,j,k,false));
+                printf(k == N-1 ? "            %20.19e" : "            %20.19e,",computeBoltzQ(i,j,k,false));
+                std::cout << std::endl;
             }
-            printf(j == N-1 ? "        }\n" : "        },\n");
+            printf(j == N-1 ? "        }" : "        },");
+            std::cout << std::endl;
         }
-        printf(i == N-1 ? "    }\n" : "    },\n");
+        printf(i == N-1 ? "    }" : "    },");
+        std::cout << std::endl;
     }
-    printf("};\n");
-    printf("const double boltzQHardSphere[%d][%d][%d] = \n", N, N, N);
-    printf("{\n");
+    printf("};");
+    std::cout << std::endl;
+    printf("const double boltzQHardSphere[%d][%d][%d] = ", N, N, N);
+    std::cout << std::endl;
+    printf("{");
+    std::cout << std::endl;
     for(int i = 0; i < N; i++)
     {
-        printf("    {\n");
+        printf("    {");
+        std::cout << std::endl;
         for(int j = 0; j < N; j++)
         {
-            printf("        {\n");
+            printf("        {");
+            std::cout << std::endl;
             for(int k = 0; k < N; k++)
             {
-                printf(k == N-1 ? "            %20.19e\n" : "            %20.19e,\n",computeBoltzQ(i,j,k,true));
+                printf(k == N-1 ? "            %20.19e" : "            %20.19e,",computeBoltzQ(i,j,k,true));
+                std::cout << std::endl;
             }
-            printf(j == N-1 ? "        }\n" : "        },\n");
+            printf(j == N-1 ? "        }" : "        },");
+            std::cout << std::endl;
         }
-        printf(i == N-1 ? "    }\n" : "    },\n");
+        printf(i == N-1 ? "    }" : "    },");
+        std::cout << std::endl;
     }
-    printf("};\n");
-    printf("#endif\n");
+    printf("};");
+    std::cout << std::endl;
+    printf("#endif");
+    std::cout << std::endl;
     return 0;
 }

@@ -8,8 +8,8 @@ const double BOLTZQ_PI = 3.141592653589793238462;
 
 double computeBoltzQ(int ir, int jr, int kr, bool hardSphere)
 {
-    double h = 0.2;
-    int Ntheta = 35;
+    double h = 0.5;
+    int Ntheta = 20;
     double val = 0.0;
     for(double r = 0.0; r < 10.0; r += h)
     {
