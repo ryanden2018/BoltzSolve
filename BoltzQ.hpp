@@ -26,8 +26,8 @@ double computeBoltzQ(int ir, int jr, int kr, bool hardSphere)
                     double vpy = -std::sin(theta)*tau;
                     double vspx = vsx + std::cos(theta)*tau;
                     double vspy = vsy + std::sin(theta)*tau;
-                    double kernel = hardSphere ? abs_tau : 1.0;
-                    double prefactor = r < 0.5*h ? 0.5 : 1.0;
+                    double kernel = (hardSphere ? abs_tau : 1.0);
+                    double prefactor = (r < 0.5*h ? 0.5 : 1.0);
                     val += prefactor * kernel * hermiteEval(std::sqrt(vpx*vpx+vpy*vpy),2*ir) 
                         * hermiteEval(std::sqrt(vspx*vspx+vspy*vspy),2*jr) 
                         * hermiteEval(r,2*kr) * 2.0 * std::sqrt(2.0) 
