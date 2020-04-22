@@ -4,7 +4,7 @@
 
 int main()
 {
-    int N = 5;
+    int N = 11;
     printf("#ifndef BOLTZQVALS_HPP");
     std::cout << std::endl;
     printf("#define BOLTZQVALS_HPP");
