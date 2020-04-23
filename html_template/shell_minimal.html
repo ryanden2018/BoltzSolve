@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Steady-state Advection-Diffusion Solver</title>
+    <title>Boltzmann</title>
     <style>
       .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
       textarea.emscripten { font-family: monospace; width: 80%; }
@@ -54,14 +54,14 @@
     </style>
   </head>
   <body>
-    <h2>Steady-state Advection-Diffusion Solver</h2>
+    <h2>Boltzmann</h2>
     <div class="text1"><i>Ryan Denlinger</i></div>
-    <div class="text1">To see this demo you will need to use a modern browser which supports WebAssembly; feel free to  
+   <!-- <div class="text1">To see this demo you will need to use a modern browser which supports WebAssembly; feel free to  
       try the &nbsp;<a href="ConvDiff2dJS.html">JavaScript version</a>&nbsp; if nothing appears below.</div>
     <div class="text1"><b>CLICK</b>&nbsp; or &nbsp;<b>CLICK AND DRAG</b>&nbsp; to alter the flow velocity.</div>
       <div class="text1">(<b>TOUCH</b>&nbsp; or &nbsp;<b>TOUCH AND DRAG</b>&nbsp; on touch-enabled devices.)</div>
         <div class="text1">The code for this demo is available on &nbsp;<a href="https://github.com/ryanden2018/ConvDiff2d/" target="_blank">GitHub</a>.</div>
-          <div class="text1">An explanation of the math behind this demo is provided below.</div>
+          <div class="text1">An explanation of the math behind this demo is provided below.</div>-->
     <hr/>
     <figure style="overflow:visible;" id="spinner"><div class="spinner"></div><center style="margin-top:0.5em"><strong>emscripten</strong></center></figure>
     <div class="emscripten" id="status">Downloading...</div>
@@ -85,7 +85,7 @@
     <textarea class="emscripten" id="output" rows="8"></textarea>
     <hr>
 
-    <h2>What is this?</h2>
+    <!--<h2>What is this?</h2>
 <div class="text2">
   An advection-diffusion equation is a partial differential equation (PDE) which describes
   a spreading (diffusing) concentration distribution under the influence of some external flow velocity. 
@@ -123,9 +123,8 @@ The right-hand side is given by the following formula:</div>
 <div class="eqn"><img src="eq5.png" height="100" /></div>
 <div class="text2">To compute the derivatives appearing in the residual, high-order finite difference formulas are applied to the 
   solution values evaluated at points which are chosen away from cell boundaries.
-</div>
-<div class="text2">The DG solver is written in C++, using the &nbsp;<a href="http://eigen.tuxfamily.org" target="_blank">Eigen</a>&nbsp; 
-package for linear algebra and &nbsp;<a href="https://emscripten.org/" target="_blank">Emscripten</a>&nbsp; to compile 
+</div>-->
+<div class="text2">The DG solver is written in C++, using  &nbsp;<a href="https://emscripten.org/" target="_blank">Emscripten</a>&nbsp; to compile 
 down to WebAssembly.</div>
 
     <script type='text/javascript'>
