@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include "BoltzQVals.hpp"
+#include "integrals.hpp"
 
 const int N = 11;
 
@@ -64,6 +65,25 @@ void init(double *out)
     }
 }
 
+double integral(double *in)
+{
+    double res = 0.0;
+    for(int i = 0; i < N; i++)
+    {
+        res += hermiteIntegrals[i] * in[i];
+    }
+    return res;
+}
+
+double moment(double *in)
+{
+    double res = 0.0;
+    for(int i = 0; i < N; i++)
+    {
+        res += hermiteMoments[i] * in[i];
+    }
+    return res;
+}
 
 const double PI = 3.141592653589793238462;
 
@@ -79,6 +99,10 @@ double *k3;
 double *k4;
 double *tmp;
 const int NUMPIXELS = 693;
+double gamma = 0.0;
+double lambda = 1.0;
+double mass = 0.0;
+double energy = 0.0;
 
 void repaint()
 {
@@ -89,22 +113,27 @@ void repaint()
 		}
 	}
     double num = 0.0;
+    double num2 = 0.0;
     for (int j = 0; j < NUMPIXELS; j++)
     {
         double r = 20.0*(j-0.5*NUMPIXELS)/NUMPIXELS;
         double val = 0.0;
         for(int n = 0; n < N; n++)
         {
-            val += y[n] * hermiteEval(r,2*n);
+            val += y[n] * lambda * hermiteEval(lambda*r,2*n);
         }
-        num += val;
-        int i = (int) ((val/5.0)*NUMPIXELS);
+        num += val*(r>0.0?r:-r);
+        num2 += val*std::pow((r>0.0?r:-r),3);
+        int i = (int) (((val+1.0)/5.0)*NUMPIXELS);
+        int ii = (int) (((1.0)/5.0)*NUMPIXELS);
         i = NUMPIXELS - i;
+        ii = NUMPIXELS - ii;
         if(i < 0) i = 0;
         if(i > NUMPIXELS) i = NUMPIXELS;
         *((Uint32*)screen->pixels + i * NUMPIXELS + j) = SDL_MapRGBA(screen->format, 0, 0, 0, 255);
+        *((Uint32*)screen->pixels + ii * NUMPIXELS + j) = SDL_MapRGBA(screen->format, 0, 0, 0, 255);
     }
-    printf("%f\n", num);
+    printf("%7.6e\t%7.6e\n",integral(y)/mass,moment(y)/energy);
 	if (SDL_MUSTLOCK(screen)) SDL_UnlockSurface(screen);
 	SDL_Flip(screen); 
 }
@@ -118,34 +147,38 @@ void sdl_init()
 		return;
 	}
 
+
+
     double h = 0.00001;
-    computeOp(y,k1);
-    init(tmp);
-    add(k1,tmp);
-    scale(tmp,h/2.0);
-    add(y,tmp);
-    computeOp(tmp,k2);
-    init(tmp);
-    add(k2,tmp);
-    scale(tmp,h/2.0);
-    add(y,tmp);
-    computeOp(tmp,k3);
-    init(tmp);
-    add(k3,tmp);
-    scale(tmp,h);
-    add(y,tmp);
-    computeOp(tmp,k4);
-    init(tmp);
-    add(k1,tmp);
-    add(k2,tmp);
-    add(k2,tmp);
-    add(k3,tmp);
-    add(k3,tmp);
-    add(k4,tmp);
-    scale(tmp,h/6.0);
-    add(y,tmp);
-    swap(y,tmp);
-    
+    for(int i = 0; i < 100; i++)
+    {
+        computeOp(y,k1);
+        init(tmp);
+        add(k1,tmp);
+        scale(tmp,h/2.0);
+        add(y,tmp);
+        computeOp(tmp,k2);
+        init(tmp);
+        add(k2,tmp);
+        scale(tmp,h/2.0);
+        add(y,tmp);
+        computeOp(tmp,k3);
+        init(tmp);
+        add(k3,tmp);
+        scale(tmp,h);
+        add(y,tmp);
+        computeOp(tmp,k4);
+        init(tmp);
+        add(k1,tmp);
+        add(k2,tmp);
+        add(k2,tmp);
+        add(k3,tmp);
+        add(k3,tmp);
+        add(k4,tmp);
+        scale(tmp,h/6.0);
+        add(y,tmp);
+        swap(y,tmp);
+    }
 
 	repaint();
 }
@@ -166,16 +199,12 @@ int main(int argc, char ** argv)
     init(k4);
     init(tmp);
 
-    //for(int i = 0; i < N; i++)
-    //{
-        //y[i] = 1.0;
-    //}
-
     y[0] = 1.0;
-    y[2] = 1.0;
-    y[4] = 1.0;
-    y[6] = 1.0;
-    y[8] = 1.0;
+    y[1] = 0.5;
+    y[2] = 0.3;
+    mass = integral(y);
+    energy = moment(y);
+
 
     // std::free(y);
     // std::free(k1);
