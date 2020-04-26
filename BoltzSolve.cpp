@@ -24,7 +24,7 @@ void computeOp(double *in, double* out)
         {
             for(int j = 0; j < N; j++)
             {
-                out[k] += in[i] * boltzQHardSphere[i][j][k] * in[j];
+                out[k] += in[i] * boltzQMaxwell[i][j][k] * in[j];
             }
         }
     }
@@ -87,7 +87,7 @@ double moment(double *in)
 
 double evalData(double r)
 {
-    return std::exp(-r*r) * (1.0+0.75*std::cos(3*r));
+    return std::exp(-r*r) * (1.0-0.75*std::cos(5*r));
 }
 
 const double PI = 3.141592653589793238462;
