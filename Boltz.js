@@ -54,13 +54,76 @@ function hermiteDerivEval(x,n)
     Math.pow(n,0.5)*Math.pow(2.0,-0.5)*a-Math.pow(n+1.0,0.5)*Math.pow(2.0,-0.5)*c);
 }
 
-function boltzQ()
+function boltzQOld()
 {
-    var ix = this.thread.x%10;
-    var iy = (this.thread.x-ix)/10;
-    var jx = this.thread.y%10;
-    var jy = (this.thread.y-jx)/10;
-    var kx = this.thread.z%10;
-    var ky = (this.thread.z-kx)/10;
-    return 1.85;
+    let h = 0.33*0.25;
+    let Ntheta = 20*4;
+    let invNtheta = Math.pow(Ntheta,-1.0);
+    let val = 1.0;
+    let ir = this.thread.x;
+    let jr = this.thread.y;
+    let kr = this.thread.z;
+    let hardSphere = false;
+    for(let i = 0; i < 566899520; i++)
+    {
+        let n = i%80;
+        let m = ((i-n)/80)%242;
+        let l = ((((i-n)/80)-m)/242)%242;
+        let k = (((((i-n)/80)-m)/242)-l)/242;
+        let r = h*k;
+        let vsx = h*l - 10.0;
+        let vsy = h*m - 10.0;
+        let theta = (2.0 * 3.141592653589793238462 * n) * invNtheta;
+        let tau = Math.cos(theta)*(r-vsx) + Math.sin(theta)*(-vsy);
+        let abs_tau = tau > 0.0 ? tau : -tau;
+        let vpx = r - Math.cos(theta)*tau;
+        let vpy = -Math.sin(theta)*tau;
+        let vspx = vsx + Math.cos(theta)*tau;
+        let vspy = vsy + Math.sin(theta)*tau;
+        let kernel = (hardSphere ? abs_tau : 1.0);
+        let prefactor = (r < 0.5*h || r > 10.0-h ? 0.5 : 1.0);
+        val += prefactor * kernel * hermiteEval(Math.sqrt(vpx*vpx+vpy*vpy),2*ir) 
+            * hermiteEval(Math.sqrt(vspx*vspx+vspy*vspy),2*jr) 
+            * hermiteEval(r,2*kr) * 2.0 * Math.sqrt(2.0) 
+            * h*h*h * invNtheta;
+        val -= prefactor * kernel * hermiteEval(r,2*ir) 
+            * hermiteEval(Math.sqrt(vsx*vsx+vsy*vsy),2*jr) 
+            * hermiteEval(r,2*kr) * 2.0 * Math.sqrt(2.0) 
+            * h*h*h * invNtheta;
+    }
+    return val;
+}
+
+// ir: 11, jr: 11, kr: 11, n: 80, k: 121: l: 242, m: 242
+function boltzQ(ir,jr,kr,n)
+{
+    let h = 0.33*0.25;
+    let Ntheta = 20*4;
+    let invNtheta = Math.pow(Ntheta,-1.0);
+    let val = 0.0;
+    let k = this.thread.x;
+    let l = this.thread.y;
+    let m = this.thread.z;
+    let hardSphere = false;
+    let r = h*k;
+    let vsx = h*l - 10.0;
+    let vsy = h*m - 10.0;
+    let theta = (2.0 * 3.141592653589793238462 * n) * invNtheta;
+    let tau = Math.cos(theta)*(r-vsx) + Math.sin(theta)*(-vsy);
+    let abs_tau = tau > 0.0 ? tau : -tau;
+    let vpx = r - Math.cos(theta)*tau;
+    let vpy = -Math.sin(theta)*tau;
+    let vspx = vsx + Math.cos(theta)*tau;
+    let vspy = vsy + Math.sin(theta)*tau;
+    let kernel = (hardSphere ? abs_tau : 1.0);
+    let prefactor = (r < 0.5*h || r > 10.0-h ? 0.5 : 1.0);
+    val += prefactor * kernel * hermiteEval(Math.sqrt(vpx*vpx+vpy*vpy),2*ir) 
+        * hermiteEval(Math.sqrt(vspx*vspx+vspy*vspy),2*jr) 
+        * hermiteEval(r,2*kr) * 2.0 * Math.sqrt(2.0) 
+        * h*h*h * invNtheta;
+    val -= prefactor * kernel * hermiteEval(r,2*ir) 
+        * hermiteEval(Math.sqrt(vsx*vsx+vsy*vsy),2*jr) 
+        * hermiteEval(r,2*kr) * 2.0 * Math.sqrt(2.0) 
+        * h*h*h * invNtheta;
+    return val;
 }

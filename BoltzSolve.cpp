@@ -199,9 +199,22 @@ int main(int argc, char ** argv)
     init(k4);
     init(tmp);
 
+    // y[0] = 1.0;
+    // y[1] = 0.5;
+    // y[2] = 0.3;
+    // y[10] = 1.0;
+    // mass = integral(y);
+    // energy = moment(y);
+    y[1] = 1.0;
+    double m1 = integral(y);
+    y[1] = 0.0;
+    y[2] = 1.0;
+    double m2 = integral(y);
+    y[2] = 0.0;
+
     y[0] = 1.0;
-    y[1] = 0.5;
-    y[2] = 0.3;
+    y[1] = 0.1*m2/m1;
+    y[2] = -0.1;
     mass = integral(y);
     energy = moment(y);
 
