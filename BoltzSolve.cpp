@@ -24,7 +24,7 @@ void computeOp(double *in, double* out)
         {
             for(int j = 0; j < N; j++)
             {
-                out[k] += in[i] * boltzQMaxwell[i][j][k] * in[j];
+                out[k] += in[i] * boltzQHardSphere[i][j][k] * in[j];
             }
         }
     }
@@ -85,7 +85,58 @@ double moment(double *in)
     return res;
 }
 
+double evalData(double r)
+{
+    return std::exp(-r*r) * (1.0+0.75*std::cos(3*r));
+}
+
 const double PI = 3.141592653589793238462;
+
+double evalMass()
+{
+    double val = 0.0;
+    double h = 0.0001;
+    for(double r = -10.0; r < 10.0; r += h)
+    {
+        double absr = r > 0.0 ? r : -r;
+        val += 2.0 * PI * evalData(absr) * absr * h;
+    }
+    return val;
+}
+
+double evalMoment()
+{
+    double val = 0.0;
+    double h = 0.0001;
+    for(double r = -10.0; r < 10.0; r += h)
+    {
+        double absr = r > 0.0 ? r : -r;
+        val += 2.0 * PI * evalData(absr) * absr * absr * absr * h;
+    }
+    return val;
+}
+
+double massOfData = evalMass();
+double momentOfData = evalMoment();
+double L = std::pow((hermiteIntegrals[0]*momentOfData)/(hermiteMoments[0]*massOfData),0.5);
+double A = std::pow(L,2) * hermiteIntegrals[0] / massOfData;
+
+double scaledData(double r)
+{
+    return A*evalData(L*r);
+}
+
+double evalCoefficient(int k)
+{
+    double val = 0.0;
+    double h = 0.0001;
+    for(double r = -10.0; r < 10.0; r += h)
+    {
+        double absr = r > 0.0 ? r : -r;
+        val += std::pow(2.0,0.5) * scaledData(absr) * hermiteEval(r,2*k) * h;
+    }
+    return val;
+}
 
 extern "C"
 {
@@ -199,22 +250,11 @@ int main(int argc, char ** argv)
     init(k4);
     init(tmp);
 
-    // y[0] = 1.0;
-    // y[1] = 0.5;
-    // y[2] = 0.3;
-    // y[10] = 1.0;
-    // mass = integral(y);
-    // energy = moment(y);
-    y[1] = 1.0;
-    double m1 = integral(y);
-    y[1] = 0.0;
-    y[2] = 1.0;
-    double m2 = integral(y);
-    y[2] = 0.0;
-
-    y[0] = 1.0;
-    y[1] = 0.1*m2/m1;
-    y[2] = -0.1;
+    //y[0] = 1.0;
+    for(int k = 0; k < 11; k++)
+    {
+        y[k] = evalCoefficient(k);
+    }
     mass = integral(y);
     energy = moment(y);
 
