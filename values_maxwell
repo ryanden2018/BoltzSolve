@@ -1,7 +1,0 @@
-#ifndef BOLTZQVALS_HPP
-#define BOLTZQVALS_HPP
-const double boltzQMaxwell[11][11][11] = 
-{
-    {
-        {
-            -2.5453671756394569591e-16,

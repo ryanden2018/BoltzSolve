@@ -1,7 +1,6 @@
 #ifndef GAUSSQUAD_HPP
 #define GAUSSQUAD_HPP
 
-// {weight,coord}
 double gaussWtsCrds[22][2]
 {
     { 0.1392518728556320, -0.0697392733197222},
