@@ -8,7 +8,7 @@
 
 const int N0 = 20;
 const int N = N0*N0;
-const double L0 = 8.0;
+const double L0 = 16.0;
 const double h = L0/N0;
 const double PI = 3.141592653589793238462;
 const int M = 10;
@@ -38,14 +38,15 @@ void computeOp(double *in, double* out)
             {
                 double theta = 2.0 * PI * k / M;
                 double tau = cos(theta)*(vx-vsx) + sin(theta)*(vy-vsy);
+                double abstau = tau > 0 ? tau : -tau;
                 double vpx = vx - cos(theta)*tau;
                 double vpy = vy - sin(theta)*tau;
                 double vspx = vsx + cos(theta)*tau;
                 double vspy = vsy + sin(theta)*tau;
                 int ii = clamp(round((vpy+L0/2.0)/h))*N0 + clamp(round((vpx+L0/2.0)/h));
                 int jj = clamp(round((vspy+L0/2.0)/h))*N0 + clamp(round((vspx+L0/2.0)/h));
-                out[i] += in[ii] * in[jj] * h*h*2.0*PI/M;
-                out[i] -= in[i] * in[j] * h*h*2.0*PI/M;
+                out[i] += abstau * in[ii] * in[jj] * h*h*2.0*PI/M;
+                out[i] -= abstau * in[i] * in[j] * h*h*2.0*PI/M;
             }
         }
     }
@@ -93,6 +94,14 @@ void init(double *out)
     for(int i = 0; i < N; i++)
     {
         out[i] = 0.0;
+    }
+}
+
+void cut(double *out)
+{
+    for(int i = 0; i < N; i++)
+    {
+        if(out[i] < 0.0) out[i] = 0.0;
     }
 }
 
@@ -182,6 +191,7 @@ void sdl_init()
     scale(tmp,dt/6.0);
     add(y,tmp);
     swap(y,tmp);
+    cut(y);
 }
 
 int main(int argc, char ** argv)
