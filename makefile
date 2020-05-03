@@ -1,7 +1,6 @@
-BoltzSolve: BoltzSolve.c
+BoltzSolve: BoltzSolve.cpp
 	mkdir -p out
-	emcc BoltzSolve.c -O3 \
-	-I /home/ryan/Downloads/eigen-3.3.7 \
+	emcc BoltzSolve.cpp -O3 \
 	-s ALLOW_MEMORY_GROWTH=1 \
 	-s NO_EXIT_RUNTIME=1  \
 	-s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" \
