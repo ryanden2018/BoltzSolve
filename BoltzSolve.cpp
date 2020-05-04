@@ -5,6 +5,7 @@
 #include <vector>
 #include <cstdlib>
 #include <ctime>
+#include <iostream>
 
 const double PI = 3.141592653589793238462;
 const double N = 100000;
@@ -34,15 +35,13 @@ ImpactParameter RandomImpactParameter()
     double omega_z = 0.0;
     while(true)
     {
-        double a = 2.0*std::rand()/RAND_MAX - 1.0;
-        double b = 2.0*std::rand()/RAND_MAX - 1.0;
-        double c = 2.0*std::rand()/RAND_MAX - 1.0;
-        if(a*a+b*b+c*c > 1.0) continue;
-        if(a*a+b*b+c*c < 0.01) continue;
-        double modulus = std::sqrt(a*a+b*b+c*c);
-        omega_x = a / modulus;
-        omega_y = b / modulus;
-        omega_z = c / modulus;
+        double a = 2.0*((double)std::rand())/RAND_MAX - 1.0;
+        double b = 2.0*((double)std::rand())/RAND_MAX - 1.0;
+        if(a*a+b*b > 1.0) continue;
+        double u = std::sqrt(1.0-a*a-b*b);
+        omega_x = 2.0*a*u;
+        omega_y = 2.0*b*u;
+        omega_z = 1.0-2.0*(a*a+b*b);
         break;
     }
     ImpactParameter omega(omega_x,omega_y,omega_z);
@@ -75,15 +74,6 @@ void Evolve(std::vector<Velocity>& velocities)
 }
 
 
-double evalData(double x, double y, double z)
-{
-    double r = sqrt(x*x+y*y+z*z);
-    //return exp(-r*r) * (1.0-0.75*cos(5*r));
-    return (r < 2.0 ? 0.25 : 0.0) - (r<1.0 ? 0.5*0.25 : 0.0);
-   // return exp(-r*r) * (1.0+0.75*exp(-4*r*r)*cos(10*r));
-    //return exp(-r*r) +0.25* exp(-(r+3)*(r+3)) +0.25* exp(-(r-3)*(r-3));
-}
-
 extern "C"
 {
 
@@ -109,9 +99,9 @@ void repaint()
         double val = 0.0;
         double vx0 = 3.0*(2.0*j * (1.0/K) - 1.0);
         double vx1 = vx0 + 3.0*2.0/K;
-        for(int j = 0; j < num; j++)
+        for(int i = 0; i < num; i++)
         {
-            if(vx0 <= velocities[j].vx && velocities[j].vx<vx1) val += 1.0/num;
+            if(vx0 <= velocities[i].vx && velocities[i].vx<vx1) val += 1.0/num;
         }
         vals.push_back(val);
     }
@@ -153,10 +143,8 @@ int main(int argc, char ** argv)
 
     for(int i = 0; i < N; i++)
     {
-        double vx = 2.0*std::rand()/RAND_MAX-1.0;
-        double vy = 2.0*std::rand()/RAND_MAX-1.0;
-        double vz = 2.0*std::rand()/RAND_MAX-1.0;
-        Velocity v(vx,vy,vz);
+        ImpactParameter im = RandomImpactParameter();
+        Velocity v(im.omega_x,im.omega_y,im.omega_z);
         velocities.push_back(v);
     }
 
